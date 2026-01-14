@@ -348,7 +348,7 @@ function renderEquipmentCards() {
               <input type="number" data-role="cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(state.usage.taxaReal, 0.01))}" readonly />
             </div>
             <div>
-              <label>Custo de Desfazimento (R$)</label>
+              <label>Desfazimento (R$)</label>
               <input type="number" data-role="cf-cd" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
             </div>
           </div>
@@ -379,7 +379,7 @@ function renderEquipmentCards() {
             <input type="number" data-role="cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(state.usage.taxaReal, 0.01))}" readonly />
           </div>
           <div>
-            <label>Custo de Desfazimento (R$)</label>
+            <label>Desfazimento (R$)</label>
             <input type="number" data-role="cf-cd" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
           </div>
         </div>
