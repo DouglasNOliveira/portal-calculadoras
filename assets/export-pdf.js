@@ -499,12 +499,13 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
   if (dataset.cashflow) {
     const page3 = createSection(doc, "Fluxo de Caixa dos Equipamentos na Vida Útil", logoInfo, { addPage: true });
     const renderCashflowTable = (title, rows, totals) => {
-      const headers = ["Ano", "CO", "Manutenção", "Energia", "CD", "COA", "VP"];
+      const headers = ["Ano", "CO", "Manutenção", "Energia", "VR", "CD", "COA", "VP"];
       const formatted = (rows || []).map((r) => [
         r.ano.toString(),
         formatCurrencyBr(r.capex),
         formatCurrencyBr(r.manutencao),
         formatCurrencyBr(r.energia),
+        formatCurrencyBr(r.valorResidual),
         formatCurrencyBr(r.descarte),
         formatCurrencyBr(r.coa),
         formatCurrencyBr(r.vpCoa ?? r.vpTotal),
@@ -515,6 +516,7 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
           formatCurrencyBr(totals.capex),
           formatCurrencyBr(totals.manutencao),
           formatCurrencyBr(totals.energia),
+          "-",
           formatCurrencyBr(totals.descarte),
           formatCurrencyBr(totals.coa),
           formatCurrencyBr(totals.vpCoa ?? totals.vpTotal),
@@ -522,7 +524,7 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
       }
       const widths = calcColWidths(doc, headers, formatted, {
         maxWidth: page3.contentWidth * 0.80,
-        minWidths: [35, 74, 90, 90, 60, 90, 80],
+        minWidths: [35, 68, 84, 84, 60, 60, 84, 72],
         padding: 6,
         fontSize: 9,
       });
@@ -532,7 +534,7 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
         colWidths: widths,
         colors: THEME.colors,
         title,
-        align: ["center", "center", "center", "center", "center", "center", "center"],
+        align: ["center", "center", "center", "center", "center", "center", "center", "center"],
         fontSize: 9,
       });
     };
@@ -545,12 +547,13 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
   if (dataset.cashflow) {
     const page4 = createSection(doc, "Fluxo de Caixa da Diferença e Payback", logoInfo, { addPage: true });
     const title = `${eq1.eq.marca} e ${eq2.eq.marca} – ${formatNumberBr(eq1.eq.potencia_btu, 0)} BTU/h`;
-    const headers = ["Ano", "CO", "Manutenção", "Energia", "CD", "COA", "VP", "Payback"];
+    const headers = ["Ano", "CO", "Manutenção", "Energia", "VR", "CD", "COA", "VP", "Payback"];
     const rowsDiff = (dataset.cashflow.rowsDiff || []).map((r) => [
       r.ano.toString(),
       formatCurrencyBr(r.capex),
       formatCurrencyBr(r.manutencao),
       formatCurrencyBr(r.energia),
+      formatCurrencyBr(r.valorResidual),
       formatCurrencyBr(r.descarte),
       formatCurrencyBr(r.coa),
       formatCurrencyBr(r.vpCoa ?? r.vpTotal),
@@ -563,6 +566,7 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
         formatCurrencyBr(t.capex),
         formatCurrencyBr(t.manutencao),
         formatCurrencyBr(t.energia),
+        "-",
         formatCurrencyBr(t.descarte),
         formatCurrencyBr(t.coa),
         formatCurrencyBr(t.vpCoa ?? t.vpTotal),
@@ -571,7 +575,7 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
     }
     const widths = calcColWidths(doc, headers, rowsDiff, {
       maxWidth: page4.contentWidth * 0.80,
-      minWidths: [35, 66, 80, 80, 60, 80, 70, 76],
+      minWidths: [35, 58, 74, 74, 58, 58, 74, 66, 72],
       padding: 5,
       fontSize: 9,
     });
@@ -581,7 +585,7 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
       colWidths: widths,
       colors: THEME.colors,
       title,
-      align: ["center", "center", "center", "center", "center", "center", "center", "center"],
+      align: ["center", "center", "center", "center", "center", "center", "center", "center", "center"],
       fontSize: 9,
     });
 

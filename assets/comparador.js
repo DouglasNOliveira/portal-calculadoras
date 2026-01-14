@@ -8,6 +8,9 @@ import { downloadExcel } from "./export-excel.js";
 import { downloadPdfExport } from "./export-pdf.js";
 import { initComparadorMultiplo, showComparadorMultiploError } from "./comparador-multiplo.js";
 
+const DEPRECIACAO_ANUAL = 0.1;
+const CURRENCY_DECIMALS = 2;
+
 // Estado principal do comparador (seleção, filtros e perfil de uso)
 const state = {
   filters: { tipo: "all", tecnologia: "all", funcao: "all", potencia: "all", tensao: "all", classe: "all" },
@@ -323,7 +326,7 @@ function renderEquipmentCards() {
               <input type="number" data-role="custom-consumo" data-key="${entry.key}" min="0" step="0.01" value="${entry.customConsumo ?? 0}" />
             </div>
           </div>
-          <div class="grid manual-cols-3 gap">
+          <div class="grid manual-cols-4 gap">
             <div>
               <label>Classe</label>
               <select data-role="custom-classe" data-key="${entry.key}">
@@ -342,7 +345,11 @@ function renderEquipmentCards() {
             </div>
             <div>
               <label>Valor Residual (R$)</label>
-              <input type="number" data-role="cf-desc" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
+              <input type="number" data-role="cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(state.usage.taxaReal, 0.01))}" readonly />
+            </div>
+            <div>
+              <label>Custo de Desfazimento (R$)</label>
+              <input type="number" data-role="cf-cd" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
             </div>
           </div>
         </div>
@@ -362,14 +369,18 @@ function renderEquipmentCards() {
             </div>
           </div>
         </div>
-        <div class="grid cols-2 gap" ${entry.mode === "manual" ? "style=\"display:none;\"" : ""}>
+        <div class="grid cols-3 gap" ${entry.mode === "manual" ? "style=\"display:none;\"" : ""}>
           <div>
             <label>Vida Útil (Anos)</label>
             <input type="number" data-role="cf-anos" data-key="${entry.key}" min="1" max="25" step="1" value="${entry.anosVida ?? 10}" />
           </div>
           <div>
             <label>Valor Residual (R$)</label>
-            <input type="number" data-role="cf-desc" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
+            <input type="number" data-role="cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(state.usage.taxaReal, 0.01))}" readonly />
+          </div>
+          <div>
+            <label>Custo de Desfazimento (R$)</label>
+            <input type="number" data-role="cf-cd" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
           </div>
         </div>
       </div>
@@ -380,6 +391,7 @@ function renderEquipmentCards() {
   state.equipments.forEach((entry) => {
     const select = equipmentListEl.querySelector(`select[data-key="${entry.key}"]`);
     if (select) select.value = entry.equipmentId?.toString() || "";
+    updateResidualInputs(entry);
   });
 
   if (addEquipmentBtn) {
@@ -461,6 +473,30 @@ function lcGetSelectedEntries() {
 function parseNumber(value, fallback = 0) {
   const n = parseFloat(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function roundCurrency(value) {
+  const factor = 10 ** CURRENCY_DECIMALS;
+  return Math.round(value * factor) / factor;
+}
+
+function computeResidualValue(capex, years, rate = 0) {
+  const vr = capex * (1 - DEPRECIACAO_ANUAL * years);
+  const base = vr > 0 ? vr : 0;
+  const pv = rate ? base / (1 + rate) ** years : base;
+  return roundCurrency(pv);
+}
+
+function updateResidualInputs(entry) {
+  if (!equipmentListEl || !entry) return;
+  const capex = parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0);
+  const anosVida = parseNumber(entry.anosVida, 10);
+  const taxaReal = parseNumber(state.usage.taxaReal, 0.01);
+  const valorResidual = computeResidualValue(capex, anosVida, taxaReal);
+  const inputs = equipmentListEl.querySelectorAll(`input[data-role="cf-vr"][data-key="${entry.key}"]`);
+  inputs.forEach((input) => {
+    input.value = valorResidual;
+  });
 }
 
 function formatNumberBr(value, decimals = 2) {
@@ -587,11 +623,20 @@ addEquipmentBtn?.addEventListener("click", () => {
     const entry = state.equipments.find((e) => e.key.toString() === key);
     if (!entry) return;
 
-    if (role === "custo-aq") entry.custoAq = parseNumber(target.value, 0);
-    if (role === "custo-inst") entry.custoInst = parseNumber(target.value, 0);
-    if (role === "cf-anos") entry.anosVida = parseNumber(target.value, 10);
+    if (role === "custo-aq") {
+      entry.custoAq = parseNumber(target.value, 0);
+      updateResidualInputs(entry);
+    }
+    if (role === "custo-inst") {
+      entry.custoInst = parseNumber(target.value, 0);
+      updateResidualInputs(entry);
+    }
+    if (role === "cf-anos") {
+      entry.anosVida = parseNumber(target.value, 10);
+      updateResidualInputs(entry);
+    }
     if (role === "cf-manut") entry.manut = parseNumber(target.value, 0);
-    if (role === "cf-desc") entry.descarte = parseNumber(target.value, 0);
+    if (role === "cf-cd") entry.descarte = parseNumber(target.value, 0);
     if (role === "custom-consumo") entry.customConsumo = parseNumber(target.value, 0);
     if (role === "custom-nome") entry.customName = target.value;
     if (role === "custom-btu") entry.customBtu = parseNumber(target.value, 0);
@@ -614,6 +659,7 @@ addEquipmentBtn?.addEventListener("click", () => {
   usageInputs.taxa.addEventListener("input", () => {
     state.usage.taxaReal = parseNumber(usageInputs.taxa.value, 0.01);
     usageInputs.taxaVal.textContent = formatPercentBr(state.usage.taxaReal, 2);
+    state.equipments.forEach((entry) => updateResidualInputs(entry));
     updateCharts();
   });
   usageInputs.dias.addEventListener("input", () => {
@@ -825,6 +871,7 @@ function buildCashflowRows(item, params) {
       capex,
       energia: 0,
       manutencao: 0,
+      valorResidual: computeResidualValue(capex, 0, taxa),
       descarte: 0,
       coa: 0,
       vpCoa: 0,
@@ -836,6 +883,7 @@ function buildCashflowRows(item, params) {
     const capexAno = 0;
     const energiaAno = energiaAnual;
     const manutAno = manut;
+    const valorResidualAno = computeResidualValue(capex, ano, taxa);
     const descarteAno = ano === years ? descarte : 0;
     const coa = energiaAno + manutAno + descarteAno;
     const vpCoa = coa / (1 + taxa) ** ano;
@@ -848,6 +896,7 @@ function buildCashflowRows(item, params) {
       capex: capexAno,
       energia: energiaAno,
       manutencao: manutAno,
+      valorResidual: valorResidualAno,
       descarte: descarteAno,
       coa,
       vpCoa,
@@ -861,11 +910,13 @@ function buildCashflowRows(item, params) {
 function renderCashflowTable(targetEl, rows, includePayback = false, totals) {
   if (!targetEl) return;
   const sumField = (field) => rows.reduce((acc, r) => acc + (Number.isFinite(r[field]) ? r[field] : 0), 0);
+  const formatMaybe = (value) => (value === null || value === undefined ? "" : formatNumberBr(value, 2));
   const totalsRow = totals || {
     ano: "Total",
     capex: sumField("capex"),
     manutencao: sumField("manutencao"),
     energia: sumField("energia"),
+    valorResidual: null,
     descarte: sumField("descarte"),
     coa: sumField("coa"),
     vpCoa: sumField("vpCoa"),
@@ -880,6 +931,7 @@ function renderCashflowTable(targetEl, rows, includePayback = false, totals) {
         <td>${formatNumberBr(r.capex, 2)}</td>
         <td>${formatNumberBr(r.manutencao, 2)}</td>
         <td>${formatNumberBr(r.energia, 2)}</td>
+        <td>${formatNumberBr(r.valorResidual, 2)}</td>
         <td>${formatNumberBr(r.descarte, 2)}</td>
         <td>${formatNumberBr(r.coa, 2)}</td>
         <td>${formatNumberBr(r.vpCoa, 2)}</td>
@@ -893,6 +945,7 @@ function renderCashflowTable(targetEl, rows, includePayback = false, totals) {
       <td>${formatNumberBr(totalsRow.capex, 2)}</td>
       <td>${formatNumberBr(totalsRow.manutencao, 2)}</td>
       <td>${formatNumberBr(totalsRow.energia, 2)}</td>
+      <td>${formatMaybe(totalsRow.valorResidual)}</td>
       <td>${formatNumberBr(totalsRow.descarte, 2)}</td>
       <td>${formatNumberBr(totalsRow.coa, 2)}</td>
       <td>${formatNumberBr(totalsRow.vpCoa, 2)}</td>
@@ -930,6 +983,7 @@ function updateCashflow(computed) {
     const capexDiff = r2.capex - r1.capex;
     const energiaDiff = r2.energia - r1.energia;
     const manutDiff = r2.manutencao - r1.manutencao;
+    const residualDiff = r2.valorResidual - r1.valorResidual;
     const descDiff = r2.descarte - r1.descarte;
     const coaDiff = r2.coa - r1.coa;
     const vpCoaDiff = r2.vpCoa - r1.vpCoa;
@@ -940,6 +994,7 @@ function updateCashflow(computed) {
       capex: capexDiff,
       manutencao: manutDiff,
       energia: energiaDiff,
+      valorResidual: residualDiff,
       descarte: descDiff,
       coa: coaDiff,
       vpCoa: vpCoaDiff,
@@ -963,6 +1018,7 @@ function updateCashflow(computed) {
     capex: sumField(rows1, "capex"),
     manutencao: sumField(rows1, "manutencao"),
     energia: sumField(rows1, "energia"),
+    valorResidual: null,
     descarte: sumField(rows1, "descarte"),
     coa: sumField(rows1, "coa"),
     vpCoa: sumField(rows1, "vpCoa"),
@@ -974,6 +1030,7 @@ function updateCashflow(computed) {
     capex: sumField(rows2, "capex"),
     manutencao: sumField(rows2, "manutencao"),
     energia: sumField(rows2, "energia"),
+    valorResidual: null,
     descarte: sumField(rows2, "descarte"),
     coa: sumField(rows2, "coa"),
     vpCoa: sumField(rows2, "vpCoa"),
@@ -985,6 +1042,7 @@ function updateCashflow(computed) {
     capex: sumField(rowsDiff, "capex"),
     manutencao: sumField(rowsDiff, "manutencao"),
     energia: sumField(rowsDiff, "energia"),
+    valorResidual: null,
     descarte: sumField(rowsDiff, "descarte"),
     coa: sumField(rowsDiff, "coa"),
     vpCoa: sumField(rowsDiff, "vpCoa"),
@@ -1267,7 +1325,7 @@ const loadEquipmentData = async () => {
     loaderEl.classList.add("hidden");
     const isFile = window.location.protocol === "file:";
     const hint = isFile
-      ? "Use um servidor local (ex.: python -m http.server) porque file:// bloqueia requisiÃ§Ãµes."
+      ? "Use um servidor local (ex.: python -m http.server) porque file:// bloqueia requisições."
       : "Verifique se a pasta data/ está no mesmo nível do index.html.";
     errorEl.textContent =
       "Não foi possível carregar a base de equipamentos. " +

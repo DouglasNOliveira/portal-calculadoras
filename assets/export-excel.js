@@ -23,6 +23,7 @@ function buildWorkbook(ds, lc) {
     CO: r.capex,
     "COA-Manutencao": r.manutencao,
     "COA-Energia": r.energia,
+    VR: r.valorResidual,
     CD: r.descarte,
     COA: r.coa,
     VP: r.vpCoa ?? r.vpTotal,
