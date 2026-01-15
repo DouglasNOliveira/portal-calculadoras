@@ -929,10 +929,10 @@ function renderCashflowTable(targetEl, rows, includePayback = false, totals) {
       <tr>
         <td>${r.ano}</td>
         <td>${formatNumberBr(r.capex, 2)}</td>
-        <td>${formatNumberBr(r.manutencao, 2)}</td>
-        <td>${formatNumberBr(r.energia, 2)}</td>
         <td>${formatNumberBr(r.valorResidual, 2)}</td>
         <td>${formatNumberBr(r.descarte, 2)}</td>
+        <td>${formatNumberBr(r.manutencao, 2)}</td>
+        <td>${formatNumberBr(r.energia, 2)}</td>
         <td>${formatNumberBr(r.coa, 2)}</td>
         <td>${formatNumberBr(r.vpCoa, 2)}</td>
         ${includePayback ? `<td>${r.payback !== undefined ? formatNumberBr(r.payback, 2) : ""}</td>` : ""}
@@ -943,10 +943,10 @@ function renderCashflowTable(targetEl, rows, includePayback = false, totals) {
     <tr>
       <td>${totalsRow.ano}</td>
       <td>${formatNumberBr(totalsRow.capex, 2)}</td>
-      <td>${formatNumberBr(totalsRow.manutencao, 2)}</td>
-      <td>${formatNumberBr(totalsRow.energia, 2)}</td>
       <td>${formatMaybe(totalsRow.valorResidual)}</td>
       <td>${formatNumberBr(totalsRow.descarte, 2)}</td>
+      <td>${formatNumberBr(totalsRow.manutencao, 2)}</td>
+      <td>${formatNumberBr(totalsRow.energia, 2)}</td>
       <td>${formatNumberBr(totalsRow.coa, 2)}</td>
       <td>${formatNumberBr(totalsRow.vpCoa, 2)}</td>
       ${includePayback ? `<td>${""}</td>` : ""}

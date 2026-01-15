@@ -21,10 +21,10 @@ function buildWorkbook(ds, lc) {
   const mapCashflowRow = (r, includePayback = false) => ({
     Ano: r.ano,
     CO: r.capex,
-    "COA-Manutencao": r.manutencao,
-    "COA-Energia": r.energia,
     VR: r.valorResidual,
     CD: r.descarte,
+    "COA-Manutencao": r.manutencao,
+    "COA-Energia": r.energia,
     COA: r.coa,
     VP: r.vpCoa ?? r.vpTotal,
     ...(includePayback ? { Payback: r.payback ?? 0 } : {}),
