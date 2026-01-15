@@ -6,11 +6,12 @@ const productModules = [
   {
     id: "ar-condicionado",
     name: "Ar-Condicionado",
-    description: "Análise completa de climatização com modelos Weibull, AFT e Arrhenius",
+    description: "Indicadores e Funções de Análise:",
     status: "active",
     features: [
-      "517 equipamentos INMETRO",
+      "517 equipamentos INMETRO/IDRS",
       "Análise de consumo e custo",
+      "Fluxo de caixa e payback",
       "Estimativa de vida útil (MTTF)",
       "Curvas de confiabilidade",
     ],
@@ -96,7 +97,7 @@ export function renderModules() {
         </ul>
         <div class="actions">
           <button class="btn compare" data-go-tab="${comparadorTarget}">Custo-Benefício</button>
-          <button class="btn compare" data-go-tab="${simultaneoTarget}">Comparador</button>
+          <button class="btn compare" data-go-tab="${simultaneoTarget}">Comparar em Lote</button>
           <button class="btn compare" data-go-tab="${cicloTarget}">Ciclo de Vida</button>
         </div>
       </div>
@@ -106,9 +107,6 @@ export function renderModules() {
 
   moduleSoon.innerHTML = soon
     .map((m) => {
-      const comparadorTarget = getTabTarget(m.id, "comparador");
-      const simultaneoTarget = getTabTarget(m.id, "simultaneo");
-      const cicloTarget = getTabTarget(m.id, "ciclo");
       return `
       <div class="module-card dashed">
         <div class="badge muted badge-top-right">Em breve</div>
@@ -117,11 +115,6 @@ export function renderModules() {
         <ul style="margin:0; padding-left:16px; color:var(--muted); display:grid; gap:4px;">
           ${m.features.map((f) => `<li>${f}</li>`).join("")}
         </ul>
-        <div class="actions">
-          <button class="btn compare" data-go-tab="${comparadorTarget}">Custo-Benefício</button>
-          <button class="btn compare" data-go-tab="${simultaneoTarget}">Comparador</button>
-          <button class="btn compare" data-go-tab="${cicloTarget}">Ciclo de Vida</button>
-        </div>
       </div>
     `;
     })
