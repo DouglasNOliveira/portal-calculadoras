@@ -31,7 +31,7 @@
   </header>
 
   <!-- -------------------------------------------------------------------------------------------- -->
-  <!--    Navegação principal entre Início, Custo-Benefício, Comparador Simultâneo e Ciclo de Vida  -->
+  <!--    Navegação principal entre Início, Custo-Benefício, Comparação em Lote e Ciclo de Vida  -->
   <!-- -------------------------------------------------------------------------------------------- -->
   <main class="container">
     <div class="tabs">
@@ -49,7 +49,7 @@
       </div>
 
       <div class="tab-dropdown">
-        <button class="tab-button" data-tab-target="simultaneo" data-tab-prefix="simultaneo">Comparador Simultâneo</button>
+        <button class="tab-button" data-tab-target="simultaneo" data-tab-prefix="simultaneo">Comparação em Lote</button>
         <div class="dropdown-menu">
           <button class="dropdown-item" data-tab-target="simultaneo">Ar-Condicionado</button>
           <button class="dropdown-item" data-tab-target="simultaneo-pneus">Pneus</button>
@@ -333,7 +333,7 @@
     <!-- ------------------------------------------------------------------------------ -->
     <section id="tab-simultaneo" class="tab-content">
       <div class="card">
-        <h3>Comparador Simultaneo - Ar-Condicionado</h3>
+        <h3>Comparador em Lote - Ar-Condicionado</h3>
         <p class="lead">Compare todos os equipamentos filtrados de uma vez, sem selecionar modelos individuais.</p>
         <div id="sim-equipment-loader" class="notice">Carregando base de equipamentos...</div>
         <div id="sim-equipment-error" class="notice error hidden"></div>
@@ -352,15 +352,15 @@
               </select>
             </div>
             <div>
-              <label>Funcao</label>
+              <label>Função</label>
               <select id="sim-filter-funcao"></select>
             </div>
             <div>
-              <label>Potencia (BTU/h)</label>
+              <label>Potência (BTU/h)</label>
               <select id="sim-filter-potencia"></select>
             </div>
             <div>
-              <label>Tensao Eletrica (V)</label>
+              <label>Tensão Elétrica (V)</label>
               <select id="sim-filter-tensao"></select>
             </div>
             <div>
@@ -373,7 +373,7 @@
       </div>
 
       <div class="card hidden" id="sim-usage-card">
-        <h3>Condicoes de Uso</h3>
+        <h3>Condições de Uso</h3>
         <div class="form-row lc-row">
           <div>
             <label>Dias de Uso/Ano</label>
@@ -390,7 +390,7 @@
             </div>
           </div>
           <div>
-            <label>Custo Energetico (R$/kWh)</label>
+            <label>Custo Enérgetico (R$/kWh)</label>
             <div class="range-wrap">
               <input type="range" id="sim-tarifa" min="0.4" max="4.0" step="0.01" value="1.80" />
               <span id="sim-tarifa-val" class="range-val">R$ 1,80</span>
@@ -407,7 +407,7 @@
       </div>
 
       <div class="card hidden" id="sim-charts-card">
-        <h3>Resultados Simultaneos</h3>
+        <h3>Resultados em Lote</h3>
         <div class="chart-grid">
           <div class="chart-card">
             <div class="chart-legend">Consumo (anual) (kWh)</div>
@@ -430,7 +430,7 @@
     <section id="tab-simultaneo-pneus" class="tab-content">
       <div class="card">
         <div class="badge muted">Em breve</div>
-        <h3>Comparador Simultâneo - Pneus</h3>
+        <h3>Comparação em Lote - Pneus</h3>
         <p class="lead">Espaço reservado para comparação simultânea de pneus.</p>
         <div class="notice">Placeholder de futuro módulo. Esta aba será preenchida quando houver conteúdo.</div>
       </div>
@@ -439,7 +439,7 @@
     <section id="tab-simultaneo-computadores" class="tab-content">
       <div class="card">
         <div class="badge muted">Em breve</div>
-        <h3>Comparador Simultâneo - Computadores</h3>
+        <h3>Comparação em Lote - Computadores</h3>
         <p class="lead">Área reservada para comparação simultânea de desktops e notebooks.</p>
         <div class="notice">Conteúdo em construção. Mantida para sinalizar a evolução do projeto.</div>
       </div>
@@ -448,7 +448,7 @@
     <section id="tab-simultaneo-mesas" class="tab-content">
       <div class="card">
         <div class="badge muted">Em breve</div>
-        <h3>Comparador Simultâneo - Mesas</h3>
+        <h3>Comparação em Lote - Mesas</h3>
         <p class="lead">Espaço reservado para comparação simultânea de mobiliário.</p>
         <div class="notice">Placeholder simples para manter a navegação consistente entre bens.</div>
       </div>
@@ -457,7 +457,7 @@
     <section id="tab-simultaneo-cadeiras" class="tab-content">
       <div class="card">
         <div class="badge muted">Em breve</div>
-        <h3>Comparador Simultâneo - Cadeiras</h3>
+        <h3>Comparação em Lote - Cadeiras</h3>
         <p class="lead">Futuras comparações de ergonomia e resistência de cadeiras.</p>
         <div class="notice">Conteúdo em construção. Será conectado ao módulo quando liberado.</div>
       </div>
