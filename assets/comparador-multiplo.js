@@ -1,21 +1,23 @@
-// -------------------------------------------------------------------------------------------------
-// Comparador Simultâneo (Múltiplo).
-// -------------------------------------------------------------------------------------------------
-// Responsável por filtrar e comparar todos os equipamentos ao mesmo tempo, sem seleção individual.
-// -------------------------------------------------------------------------------------------------
+// Arquivo responsável por gerenciar o comparador em lote de ar-condicionado,
 
 import { computeEnergyTotals } from "./energy.js";
 import { createComparadorChartsLite, destroyChartGroup, BLUE_PALETTE } from "./charts.js";
 
-// -------------------------------------------------------------------------------------------------
-// Estado local do comparador simultâneo
-// -------------------------------------------------------------------------------------------------
+const DEPRECIACAO_ANUAL = 0.1;
+const CURRENCY_DECIMALS = 2;
+
+// Estado do comparador simultâneo
 const simState = {
   filters: { tipo: "all", tecnologia: "all", funcao: "all", potencia: "all", tensao: "all", classe: "all" },
   equipments: [
     {
       key: 1,
       equipmentId: "",
+      custoAq: "",
+      custoInst: "",
+      anosVida: "",
+      manut: "",
+      descarte: "",
       mode: "select",
       customName: "",
       customConsumo: "",
@@ -27,6 +29,11 @@ const simState = {
     {
       key: 2,
       equipmentId: "",
+      custoAq: "",
+      custoInst: "",
+      anosVida: "",
+      manut: "",
+      descarte: "",
       mode: "select",
       customName: "",
       customConsumo: "",
@@ -49,9 +56,7 @@ let simCharts = { consumo: null, custo: null };
 let lastFiltered = [];
 let resizeAttached = false;
 
-// -------------------------------------------------------------------------------------------------
-// Referências de UI (comparador simultâneo)
-// -------------------------------------------------------------------------------------------------
+// Referências de elementos DOM
 const simLoaderEl = document.getElementById("sim-equipment-loader");
 const simErrorEl = document.getElementById("sim-equipment-error");
 const simUiEl = document.getElementById("sim-equipment-ui");
@@ -63,6 +68,7 @@ const simEquipmentListEl = document.getElementById("sim-equipment-list");
 const simAddEquipmentBtn = document.getElementById("sim-add-equipment");
 const simQtyInput = document.getElementById("sim-qty");
 
+// Referências de campos de filtro e inputs
 const simFilterFields = {
   tipo: document.getElementById("sim-filter-tipo"),
   tecnologia: document.getElementById("sim-filter-tecnologia"),
@@ -72,6 +78,7 @@ const simFilterFields = {
   classe: document.getElementById("sim-filter-classe"),
 };
 
+// Referências de inputs de uso
 const simUsageInputs = {
   horas: document.getElementById("sim-horas-uso"),
   tarifa: document.getElementById("sim-tarifa"),
@@ -83,19 +90,47 @@ const simUsageInputs = {
   taxaVal: document.getElementById("sim-taxa-real-val"),
 };
 
-// -------------------------------------------------------------------------------------------------
-// Utilitários simples (mantidos locais para evitar dependência circular)
-// -------------------------------------------------------------------------------------------------
+// Analisa um número, retornando um valor padrão se inválido
 function parseNumber(value, fallback = 0) {
   const n = parseFloat(value);
   return Number.isFinite(n) ? n : fallback;
 }
 
+function roundCurrency(value) {
+  const factor = 10 ** CURRENCY_DECIMALS;
+  return Math.round(value * factor) / factor;
+}
+
+function computeResidualValue(capex, years, rate = 0) {
+  const vr = capex * (1 - DEPRECIACAO_ANUAL * years);
+  const base = vr > 0 ? vr : 0;
+  const pv = rate ? base / (1 + rate) ** years : base;
+  return roundCurrency(pv);
+}
+
+function updateSimResidualInputs(entry) {
+  if (!simEquipmentListEl || !entry) return;
+  const capex = parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0);
+  const anosVida = parseNumber(entry.anosVida, 10);
+  const taxaReal = parseNumber(simState.usage.taxaReal, 0.01);
+  const valorResidual = computeResidualValue(capex, anosVida, taxaReal);
+  const inputs = simEquipmentListEl.querySelectorAll(`input[data-role="sim-cf-vr"][data-key="${entry.key}"]`);
+  inputs.forEach((input) => {
+    input.value = valorResidual;
+  });
+}
+
+function updateAllSimResidualInputs() {
+  simState.equipments.forEach((entry) => updateSimResidualInputs(entry));
+}
+
+// Formata valores monetários e percentuais em BRL
 function formatCurrencyBr(value) {
   const n = Number.isFinite(value) ? value : 0;
   return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// Formata valores percentuais em BR
 function formatPercentBr(value, decimals = 2) {
   const n = Number.isFinite(value) ? value : 0;
   return `${(n * 100).toLocaleString("pt-BR", {
@@ -104,6 +139,7 @@ function formatPercentBr(value, decimals = 2) {
   })}%`;
 }
 
+// Formata horas por dia em formato legível
 function formatHoursPerDay(hours) {
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
@@ -111,6 +147,7 @@ function formatHoursPerDay(hours) {
   return `${h}h${mm}min/dia`;
 }
 
+// Atualiza o preenchimento visual de um input range
 function setRangeFill(el) {
   if (!el) return;
   const min = parseFloat(el.min || "0");
@@ -120,6 +157,7 @@ function setRangeFill(el) {
   el.style.setProperty("--fill", `${Math.min(Math.max(pct, 0), 100)}%`);
 }
 
+// Obtém valores únicos de um campo específico na base de dados
 function uniqueValues(field) {
   const values = new Set();
   equipmentData.forEach((eq) => {
@@ -128,15 +166,23 @@ function uniqueValues(field) {
   return Array.from(values).filter(Boolean).sort((a, b) => (a > b ? 1 : -1));
 }
 
+
+// Gerencia chaves únicas para equipamentos adicionados
 function nextSimKey() {
   const keys = simState.equipments.map((e) => e.key);
   return keys.length ? Math.max(...keys) + 1 : 1;
 }
 
+// Cria uma entrada padrão para equipamento no comparador
 function defaultSimEntry() {
   return {
     key: nextSimKey(),
     equipmentId: "",
+    custoAq: "",
+    custoInst: "",
+    anosVida: "",
+    manut: "",
+    descarte: "",
     mode: "select",
     customName: "",
     customConsumo: "",
@@ -147,6 +193,7 @@ function defaultSimEntry() {
   };
 }
 
+// Garante que o número de equipamentos no comparador esteja dentro dos limites
 function ensureSimEquipmentCount(count) {
   const target = Math.max(2, Math.min(20, parseInt(count, 10) || 2));
   while (simState.equipments.length < target) simState.equipments.push(defaultSimEntry());
@@ -154,19 +201,26 @@ function ensureSimEquipmentCount(count) {
   if (simQtyInput) simQtyInput.value = target.toString();
 }
 
+// Constrói a lista de opções para seleção de equipamentos
 function buildSimOptionList(filtered) {
   return (
     '<option value="">Selecione</option>' +
     filtered
       .map(
-        (eq) => `<option value="${eq.id}">${eq.marca} - ${eq.funcao} 
-        - ${eq.potencia_btu} BTU/h (${eq.tecnologia}) - ${eq.tipo} - ${eq.tensao} V 
-        - IDRS: ${eq.idrs} - Classe: ${eq.classe} - Modelo: ${eq.modelo_concat}</option>`
+        (eq) => {
+          const potencia = eq.potencia_btu ? `${eq.potencia_btu} BTU/h` : "";
+          const tecnologia = eq.tecnologia ? `(${eq.tecnologia})` : "";
+          const modelo = eq.modelo_concat ? `- ${eq.modelo_concat}` : "";
+          const label = [eq.marca, potencia, tecnologia].filter(Boolean).join(" ") + ` ${modelo}`.trimEnd();
+          const fullLabel = `${eq.marca} - ${eq.funcao} - ${eq.potencia_btu} BTU/h (${eq.tecnologia}) - ${eq.tipo} - ${eq.tensao} V - IDRS: ${eq.idrs} - Classe: ${eq.classe} - Modelo: ${eq.modelo_concat}`;
+          return `<option value="${eq.id}" data-full="${fullLabel}">${label}</option>`;
+        }
       )
       .join("")
   );
 }
 
+// Renderiza os cards de seleção de equipamentos no comparador
 function renderSimEquipmentCards(filtered) {
   if (!simEquipmentListEl) return;
   const optionList = buildSimOptionList(filtered);
@@ -178,55 +232,101 @@ function renderSimEquipmentCards(filtered) {
         <h4>Equipamento ${idx + 1}</h4>
         ${entry.mode === "manual"
           ? `
-        <div class="mode-manual">
-          <div class="grid manual-cols-4 gap">
-            <div>
-              <label>Equipamento (Manual)</label>
-              <input type="text" data-role="sim-custom-nome" data-key="${entry.key}" value="${entry.customName ?? ""}" placeholder="Ex.: CGF Brisa 3000" />
-            </div>
-            <div>
-              <label>Capacidade (BTU/h)</label>
-              <input type="number" data-role="sim-custom-btu" data-key="${entry.key}" min="0" step="1" value="${entry.customBtu ?? 0}" />
-            </div>
-            <div>
-              <label>Tecnologia</label>
-              <select data-role="sim-custom-tec" data-key="${entry.key}">
-                <option value="" ${!entry.customTec ? "selected" : ""}>Selecione</option>
-                <option value="Inverter" ${entry.customTec === "Inverter" ? "selected" : ""}>Inverter</option>
-                <option value="Convencional" ${entry.customTec === "Convencional" ? "selected" : ""}>Convencional</option>
-              </select>
-            </div>
-            <div>
-              <label>IDRS</label>
-              <input type="number" data-role="sim-custom-idrs" data-key="${entry.key}" min="0" step="0.01" value="${entry.customIdrs ?? 0}" />
-            </div>
+        <div class="sim-equipment-row manual">
+          <div>
+            <label>Equipamento (Manual)</label>
+            <input type="text" data-role="sim-custom-nome" data-key="${entry.key}" value="${entry.customName ?? ""}" placeholder="Ex.: CGF Brisa 3000" />
           </div>
-          <div class="grid manual-cols-4 gap">
-            <div>
-              <label>Classe</label>
-              <select data-role="sim-custom-classe" data-key="${entry.key}">
-                <option value="">Selecione</option>
-                <option value="A" ${entry.customClasse === "A" ? "selected" : ""}>A</option>
-                <option value="B" ${entry.customClasse === "B" ? "selected" : ""}>B</option>
-                <option value="C" ${entry.customClasse === "C" ? "selected" : ""}>C</option>
-                <option value="D" ${entry.customClasse === "D" ? "selected" : ""}>D</option>
-                <option value="E" ${entry.customClasse === "E" ? "selected" : ""}>E</option>
-                <option value="F" ${entry.customClasse === "F" ? "selected" : ""}>F</option>
-              </select>
-            </div>
-            <div>
-              <label>Consumo (kWh/Ano)</label>
-              <input type="number" data-role="sim-custom-consumo" data-key="${entry.key}" min="0" step="0.01" value="${entry.customConsumo ?? 0}" />
-            </div>
+          <div>
+            <label>Capacidade (BTU/h)</label>
+            <input type="number" data-role="sim-custom-btu" data-key="${entry.key}" min="0" step="1" value="${entry.customBtu ?? 0}" />
+          </div>
+          <div>
+            <label>Tecnologia</label>
+            <select data-role="sim-custom-tec" data-key="${entry.key}">
+              <option value="" ${!entry.customTec ? "selected" : ""}>Selecione</option>
+              <option value="Inverter" ${entry.customTec === "Inverter" ? "selected" : ""}>Inverter</option>
+              <option value="Convencional" ${entry.customTec === "Convencional" ? "selected" : ""}>Convencional</option>
+            </select>
+          </div>
+          <div>
+            <label>IDRS</label>
+            <input type="number" data-role="sim-custom-idrs" data-key="${entry.key}" min="0" step="0.01" value="${entry.customIdrs ?? 0}" />
+          </div>
+          <div>
+            <label>Classe</label>
+            <select data-role="sim-custom-classe" data-key="${entry.key}">
+              <option value="">Selecione</option>
+              <option value="A" ${entry.customClasse === "A" ? "selected" : ""}>A</option>
+              <option value="B" ${entry.customClasse === "B" ? "selected" : ""}>B</option>
+              <option value="C" ${entry.customClasse === "C" ? "selected" : ""}>C</option>
+              <option value="D" ${entry.customClasse === "D" ? "selected" : ""}>D</option>
+              <option value="E" ${entry.customClasse === "E" ? "selected" : ""}>E</option>
+              <option value="F" ${entry.customClasse === "F" ? "selected" : ""}>F</option>
+            </select>
+          </div>
+          <div>
+            <label>Consumo (kWh/Ano)</label>
+            <input type="number" data-role="sim-custom-consumo" data-key="${entry.key}" min="0" step="0.01" value="${entry.customConsumo ?? 0}" />
+          </div>
+          <div>
+            <label>Aquisição (R$)</label>
+            <input type="number" data-role="sim-custo-aq" data-key="${entry.key}" step="0.01" value="${entry.custoAq ?? ""}" />
+          </div>
+          <div>
+            <label>Instalação (R$)</label>
+            <input type="number" data-role="sim-custo-inst" data-key="${entry.key}" step="0.01" value="${entry.custoInst ?? ""}" />
+          </div>
+          <div>
+            <label>Manutenção (R$)</label>
+            <input type="number" data-role="sim-cf-manut" data-key="${entry.key}" min="0" step="1" value="${entry.manut ?? 0}" />
+          </div>
+          <div>
+            <label>Vida Útil (Anos)</label>
+            <input type="number" data-role="sim-cf-anos" data-key="${entry.key}" min="1" max="25" step="1" value="${entry.anosVida ?? 10}" />
+          </div>
+          <div>
+            <label>Valor Residual (R$)</label>
+            <input type="number" data-role="sim-cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(simState.usage.taxaReal, 0.01))}" readonly />
+          </div>
+          <div>
+            <label>Desfazimento (R$)</label>
+            <input type="number" data-role="sim-cf-cd" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
           </div>
         </div>
         `
           : `
-        <div class="mode-select">
-          <label>Equipamento (INMETRO)</label>
-          <select data-role="sim-equipment-select" data-key="${entry.key}">
-            ${optionList}
-          </select>
+        <div class="sim-equipment-row">
+          <div>
+            <label>Equipamento (INMETRO)</label>
+            <select class="equipment-select-compact" data-role="sim-equipment-select" data-key="${entry.key}">
+              ${optionList}
+            </select>
+          </div>
+          <div>
+            <label>Aquisição (R$)</label>
+            <input type="number" data-role="sim-custo-aq" data-key="${entry.key}" step="0.01" value="${entry.custoAq ?? ""}" />
+          </div>
+          <div>
+            <label>Instalação (R$)</label>
+            <input type="number" data-role="sim-custo-inst" data-key="${entry.key}" step="0.01" value="${entry.custoInst ?? ""}" />
+          </div>
+          <div>
+            <label>Manutenção (R$)</label>
+            <input type="number" data-role="sim-cf-manut" data-key="${entry.key}" min="0" step="1" value="${entry.manut ?? 0}" />
+          </div>
+          <div>
+            <label>Vida Útil (Anos)</label>
+            <input type="number" data-role="sim-cf-anos" data-key="${entry.key}" min="1" max="25" step="1" value="${entry.anosVida ?? 10}" />
+          </div>
+          <div>
+            <label>Valor Residual (R$)</label>
+            <input type="number" data-role="sim-cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(simState.usage.taxaReal, 0.01))}" readonly />
+          </div>
+          <div>
+            <label>Desfazimento (R$)</label>
+            <input type="number" data-role="sim-cf-cd" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
+          </div>
         </div>
         `}
       </div>
@@ -236,10 +336,16 @@ function renderSimEquipmentCards(filtered) {
 
   simState.equipments.forEach((entry) => {
     const select = simEquipmentListEl.querySelector(`select[data-key="${entry.key}"]`);
-    if (select) select.value = entry.equipmentId?.toString() || "";
+    if (select) {
+      select.value = entry.equipmentId?.toString() || "";
+      const option = select.selectedOptions?.[0];
+      select.title = option?.dataset?.full || option?.textContent || "";
+    }
+    updateSimResidualInputs(entry);
   });
 }
 
+// Analisa um equipamento customizado do comparador
 function parseSimCustomEquipment(entry) {
   const consumo = parseNumber(entry.customConsumo, 0);
   if (!consumo) return null;
@@ -253,6 +359,7 @@ function parseSimCustomEquipment(entry) {
   };
 }
 
+// Obtém a lista de equipamentos selecionados no comparador
 function getSimSelectedEntries(filtered) {
   return simState.equipments
     .map((entry) => {
@@ -269,9 +376,7 @@ function getSimSelectedEntries(filtered) {
     .filter(Boolean);
 }
 
-// -------------------------------------------------------------------------------------------------
-// Filtros e graficos
-// -------------------------------------------------------------------------------------------------
+// Constrói as opções dos filtros com base na base de dados
 function simPopulateFilterOptions() {
   if (!simFilterFields.tipo) return;
   simFilterFields.tipo.innerHTML =
@@ -301,6 +406,7 @@ function simPopulateFilterOptions() {
       .join("");
 }
 
+// Atualiza a visibilidade dos cards de seleção e resultados do comparador
 function simUpdateVisibility(filtered) {
   const selected = getSimSelectedEntries(filtered);
   const hasData = selected.length >= 2;
@@ -309,6 +415,7 @@ function simUpdateVisibility(filtered) {
   simChartsCard?.classList.toggle("hidden", !hasData);
 }
 
+// Atualiza os gráficos do comparador com base nos equipamentos selecionados
 function simUpdateCharts(filtered) {
   if (!simChartsCard) return;
   const selected = getSimSelectedEntries(filtered);
@@ -318,15 +425,15 @@ function simUpdateCharts(filtered) {
     return;
   }
 
-  const lifeYears = 1;
   const entries = selected.map((entry) => ({
     ...entry,
-    custoAq: 0,
-    custoInst: 0,
-    manut: 0,
-    descarte: 0,
+    custoAq: parseNumber(entry.custoAq, 0),
+    custoInst: parseNumber(entry.custoInst, 0),
+    manut: parseNumber(entry.manut, 0),
+    descarte: parseNumber(entry.descarte, 0),
   }));
 
+  const lifeYears = 1;
   const computed = computeEnergyTotals(entries, simState.usage, lifeYears).map((entry, idx) => ({
     ...entry,
     color: BLUE_PALETTE[idx % BLUE_PALETTE.length],
@@ -375,6 +482,7 @@ function simUpdateCharts(filtered) {
   simChartsCard.classList.remove("hidden");
 }
 
+// Aplica os filtros selecionados no comparador
 function simApplyFilters() {
   const filtered = equipmentData.filter((eq) => {
     if (simState.filters.tipo !== "all" && eq.tipo !== simState.filters.tipo) return false;
@@ -401,9 +509,7 @@ function simApplyFilters() {
   simUpdateVisibility(filtered);
 }
 
-// -------------------------------------------------------------------------------------------------
-// Eventos e bootstrap do comparador simultaneo
-// -------------------------------------------------------------------------------------------------
+// Anexa eventos aos campos de filtro e inputs do comparador
 function attachSimEvents() {
   if (!simFilterFields.tipo) return;
   Object.entries(simFilterFields).forEach(([key, el]) => {
@@ -432,6 +538,7 @@ function attachSimEvents() {
     simUsageInputs.taxa.addEventListener("input", () => {
       simState.usage.taxaReal = parseNumber(simUsageInputs.taxa.value, 0.01);
       simUsageInputs.taxaVal.textContent = formatPercentBr(simState.usage.taxaReal, 2);
+      updateAllSimResidualInputs();
       simApplyFilters();
     });
   }
@@ -487,12 +594,20 @@ function attachSimEvents() {
       switch (role) {
         case "sim-equipment-select":
           entry.equipmentId = target.value || "";
+          if (target instanceof HTMLSelectElement) {
+            const option = target.selectedOptions?.[0];
+            target.title = option?.dataset?.full || option?.textContent || "";
+          }
           break;
         case "sim-custom-tec":
           entry.customTec = target.value || "";
           break;
         case "sim-custom-classe":
           entry.customClasse = target.value || "";
+          break;
+        case "sim-cf-anos":
+          entry.anosVida = target.value;
+          updateSimResidualInputs(entry);
           break;
         default:
           break;
@@ -520,6 +635,24 @@ function attachSimEvents() {
         case "sim-custom-consumo":
           entry.customConsumo = target.value;
           break;
+        case "sim-custo-aq":
+          entry.custoAq = target.value;
+          updateSimResidualInputs(entry);
+          break;
+        case "sim-custo-inst":
+          entry.custoInst = target.value;
+          updateSimResidualInputs(entry);
+          break;
+        case "sim-cf-manut":
+          entry.manut = target.value;
+          break;
+        case "sim-cf-anos":
+          entry.anosVida = target.value;
+          updateSimResidualInputs(entry);
+          break;
+        case "sim-cf-cd":
+          entry.descarte = target.value;
+          break;
         default:
           break;
       }
@@ -529,6 +662,7 @@ function attachSimEvents() {
   }
 }
 
+// Inicializa o comparador simultâneo com a base de dados fornecida
 export function initComparadorMultiplo(data) {
   if (!simFilterFields.tipo) return;
   equipmentData = Array.isArray(data) ? data : [];
@@ -555,6 +689,7 @@ export function initComparadorMultiplo(data) {
   }
 }
 
+// Exibe uma mensagem de erro no comparador simultâneo
 export function showComparadorMultiploError(message) {
   if (simLoaderEl) simLoaderEl.classList.add("hidden");
   if (simErrorEl) {

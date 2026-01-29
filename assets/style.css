@@ -764,6 +764,23 @@ input[type="range"]:focus-visible {
   gap: 10px;
 }
 
+.sim-equipment-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 2.2fr) repeat(6, minmax(150px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.sim-equipment-row.manual {
+  grid-template-columns: minmax(260px, 2.2fr) repeat(10, minmax(140px, 1fr));
+}
+
+.equipment-select-compact {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
 .equipment-card h4 { margin: 0; }
 
 .sim-selection-actions {
@@ -867,6 +884,13 @@ input[type="range"]:focus-visible {
   .cols-2-fixed { grid-template-columns: 1fr; }
   .sim-selection-actions { align-items: stretch; }
   .sim-qty-wrap { width: 100%; }
+}
+
+@media (max-width: 1350px) {
+  .sim-equipment-row,
+  .sim-equipment-row.manual {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
 }
 
 

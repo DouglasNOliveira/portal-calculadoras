@@ -16,28 +16,32 @@ const productModules = [
       "Curvas de confiabilidade",
     ],
   },
-  {
+
+  { // pneus
     id: "pneus",
     name: "Pneus",
     description: "Comparação de pneus para frota pública com análise de durabilidade e custo por quilômetro",
     status: "soon",
     features: ["Análise de desgaste", "Custo por km rodado", "Segurança e grip"],
   },
-  {
+
+  { // computadores
     id: "computadores",
     name: "Computadores",
     description: "Avaliação de desktops, notebooks e estações de trabalho com TCO e obsolescência",
     status: "soon",
     features: ["TCO (Total Cost of Ownership)", "Benchmark de performance", "Análise de obsolescência"],
   },
-  {
+
+  { // mesas
     id: "mesas",
     name: "Mesas",
     description: "Comparação de mobiliário com foco em durabilidade, ergonomia e custo-benefício",
     status: "soon",
     features: ["Durabilidade de materiais", "Ergonomia e normas", "Manutenção e garantia"],
   },
-  {
+
+  { // cadeiras
     id: "cadeiras",
     name: "Cadeiras",
     description: "Avaliação de cadeiras de escritório com foco em ergonomia e vida útil",
@@ -49,7 +53,7 @@ const productModules = [
 const moduleActive = document.getElementById("module-active");
 const moduleSoon = document.getElementById("module-soon");
 
-const tabTargetMap = {
+const tabTargetMap = { // Mapeia IDs de módulos para IDs de abas específicas
   comparador: {
     "ar-condicionado": "comparador",
     pneus: "comparador-pneus",
@@ -82,7 +86,7 @@ export function renderModules() {
   const active = productModules.filter((m) => m.status === "active");
   const soon = productModules.filter((m) => m.status !== "active");
 
-  moduleActive.innerHTML = active
+  moduleActive.innerHTML = active // Renderiza cards de módulos ativos
     .map((m) => {
       const comparadorTarget = getTabTarget(m.id, "comparador");
       const simultaneoTarget = getTabTarget(m.id, "simultaneo");
@@ -105,7 +109,7 @@ export function renderModules() {
     })
     .join("");
 
-  moduleSoon.innerHTML = soon
+  moduleSoon.innerHTML = soon // Renderiza cards de módulos futuros
     .map((m) => {
       return `
       <div class="module-card dashed">
