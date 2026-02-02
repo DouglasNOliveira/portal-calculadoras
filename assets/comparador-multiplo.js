@@ -52,7 +52,7 @@ const simState = {
 };
 
 let equipmentData = [];
-let simCharts = { consumo: null, custo: null };
+let simCharts = { consumo: null, custo: null, total: null };
 let lastFiltered = [];
 let resizeAttached = false;
 
@@ -441,9 +441,13 @@ function simUpdateCharts(filtered) {
 
   const sortedByConsumo = [...computed].sort((a, b) => a.consumoTotal - b.consumoTotal);
   const sortedByCusto = [...computed].sort((a, b) => a.custoEnergiaPV - b.custoEnergiaPV);
+  const sortedByTotal = [...computed].sort(
+    (a, b) => (a.custoAq + a.custoInst + a.custoEnergiaPV) - (b.custoAq + b.custoInst + b.custoEnergiaPV)
+  );
 
   const labelsConsumo = sortedByConsumo.map((_, idx) => (idx + 1).toString());
   const labelsCusto = sortedByCusto.map((_, idx) => (idx + 1).toString());
+  const labelsTotal = sortedByTotal.map((_, idx) => (idx + 1).toString());
   const tooltipFor = (item) => {
     const marca = item.eq.marca || "Equipamento";
     const potencia = item.eq.potencia_btu ? `${item.eq.potencia_btu} BTU/h` : "";
@@ -451,10 +455,14 @@ function simUpdateCharts(filtered) {
   };
   const tooltipLabelsConsumo = sortedByConsumo.map(tooltipFor);
   const tooltipLabelsCusto = sortedByCusto.map(tooltipFor);
+  const tooltipLabelsTotal = sortedByTotal.map(tooltipFor);
   const colorScaleConsumo = sortedByConsumo.map((c) => c.color);
   const colorScaleCusto = sortedByCusto.map((c) => c.color);
   const consumos = sortedByConsumo.map((c) => c.consumoTotal);
   const custosEnergia = sortedByCusto.map((c) => c.custoEnergiaPV);
+  const custosAquisicao = sortedByTotal.map((c) => c.custoAq);
+  const custosInstalacao = sortedByTotal.map((c) => c.custoInst);
+  const custosEnergiaTotal = sortedByTotal.map((c) => c.custoEnergiaPV);
 
   const barWidth = 24;
   const consumoCanvas = document.getElementById("sim-chart-consumo");
@@ -468,14 +476,19 @@ function simUpdateCharts(filtered) {
   simCharts = createComparadorChartsLite({
     labelsConsumo,
     labelsCusto,
+    labelsTotal,
     tooltipLabelsConsumo,
     tooltipLabelsCusto,
+    tooltipLabelsTotal,
     consumos,
     custosEnergia,
+    custosAquisicao,
+    custosInstalacao,
+    custosEnergiaTotal,
     colorScaleConsumo,
     colorScaleCusto,
     lifeYears,
-    targets: { consumoId: "sim-chart-consumo", custoId: "sim-chart-custo" },
+    targets: { consumoId: "sim-chart-consumo", custoId: "sim-chart-custo", totalId: "sim-chart-total" },
     size: { width: chartWidth, height: chartHeight },
   });
 

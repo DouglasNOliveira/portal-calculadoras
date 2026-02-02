@@ -336,28 +336,36 @@ export function createComparadorCharts({
 export function createComparadorChartsLite({
   labelsConsumo,
   labelsCusto,
+  labelsTotal,
   tooltipLabelsConsumo,
   tooltipLabelsCusto,
+  tooltipLabelsTotal,
   consumos,
   custosEnergia,
+  custosAquisicao,
+  custosInstalacao,
+  custosEnergiaTotal,
   colorScaleConsumo,
   colorScaleCusto,
   lifeYears = 1,
-  targets = { consumoId: "chart-consumo", custoId: "chart-custo" },
+  targets = { consumoId: "chart-consumo", custoId: "chart-custo", totalId: "chart-total" },
   size = { width: 800, height: 320 },
 }) {
   const lifeLabel = lifeYears > 1 ? ` (vida util ${lifeYears} anos)` : "";
   const consumoCanvas = document.getElementById(targets.consumoId);
   const custoCanvas = document.getElementById(targets.custoId);
+  const totalCanvas = document.getElementById(targets.totalId);
 
-  if (!consumoCanvas || !custoCanvas) {
-    return { consumo: null, custo: null };
+  if (!consumoCanvas || !custoCanvas || !totalCanvas) {
+    return { consumo: null, custo: null, total: null };
   }
 
   consumoCanvas.width = size.width;
   consumoCanvas.height = size.height;
   custoCanvas.width = size.width;
   custoCanvas.height = size.height;
+  totalCanvas.width = size.width;
+  totalCanvas.height = size.height;
 
   const consumoChart = new Chart(consumoCanvas, {
     type: "bar",
@@ -445,7 +453,71 @@ export function createComparadorChartsLite({
     },
   });
 
-  return { consumo: consumoChart, custo: custoChart };
+  const totalChart = new Chart(totalCanvas, {
+    type: "bar",
+    data: {
+      labels: labelsTotal,
+      datasets: [
+        {
+          label: "Aquisicao",
+          data: custosAquisicao,
+          backgroundColor: "#b71c1c",
+          borderColor: "#8e1111",
+          borderWidth: 1,
+          stack: "total",
+        },
+        {
+          label: "Instalacao",
+          data: custosInstalacao,
+          backgroundColor: "#f4c542",
+          borderColor: "#d4a317",
+          borderWidth: 1,
+          stack: "total",
+        },
+        {
+          label: lifeLabel ? `Energia${lifeLabel}` : "Energia (anual)",
+          data: custosEnergiaTotal,
+          backgroundColor: "#ef7f1a",
+          borderColor: "#c76312",
+          borderWidth: 1,
+          stack: "total",
+        },
+      ],
+    },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const idx = items?.[0]?.dataIndex ?? 0;
+              return tooltipLabelsTotal?.[idx] || "";
+            },
+            label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`,
+          },
+        },
+        valueLabel: { display: false },
+        legend: { display: true },
+      },
+      layout: { padding: { top: 10 } },
+      scales: {
+        x: {
+          stacked: true,
+          title: { display: false },
+          ticks: { display: false },
+        },
+        y: {
+          stacked: true,
+          title: { display: true, text: `R$${lifeLabel}` },
+          grace: "8%",
+          grid: { color: "rgba(0,0,0,0.06)" },
+        },
+      },
+    },
+  });
+
+  return { consumo: consumoChart, custo: custoChart, total: totalChart };
 }
 
 // -------------------------------------------------------------------------------------------------
