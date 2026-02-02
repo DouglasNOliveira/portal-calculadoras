@@ -433,18 +433,78 @@
             <div class="chart-footer">Equipamentos ordenados de forma crescente de consumo</div>
           </div>
           <div class="chart-card">
-            <div class="chart-legend">Custo de Energia (anual)</div>
+            <div class="chart-legend">Custo de Energia (VP)</div>
             <div class="chart-scroll">
               <canvas id="sim-chart-custo"></canvas>
             </div>
-            <div class="chart-footer">Equipamentos ordenados de forma crescente de custo energetico</div>
+            <div class="chart-footer">Equipamentos ordenados de forma crescente de custo de energia</div>
           </div>
           <div class="chart-card">
-            <div class="chart-legend">Custo de Aquisição + Instalação + Energia (anual)</div>
+            <div class="chart-legend">Custo de Aquisição + Instalação + Energia (VP)</div>
             <div class="chart-scroll">
               <canvas id="sim-chart-total"></canvas>
             </div>
-            <div class="chart-footer">Equipamentos ordenados de forma crescente de custo total</div>
+            <div class="chart-footer">Equipamentos ordenados de forma crescente de custo total (VP)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card hidden" id="sim-cashflow-card">
+        <div class="flex-between">
+          <div>
+            <h3>Comparação Binária no Lote</h3>
+            <p class="lead">Selecione dois equipamentos do lote para gerar fluxo de caixa comparativo e payback.</p>
+          </div>
+        </div>
+        <div class="grid cols-2">
+          <div>
+            <label>Equipamento 1</label>
+            <select id="sim-compare-a"></select>
+          </div>
+          <div>
+            <label>Equipamento 2</label>
+            <select id="sim-compare-b"></select>
+          </div>
+        </div>
+        <div class="grid cols-2 cf-grid">
+          <div class="table-card">
+            <div class="table-card__title" id="sim-cf-title-1">Fluxo de Caixa - Equipamento 1</div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>COA-VP</th>
+                </tr>
+              </thead>
+              <tbody id="sim-cf-body-1"></tbody>
+            </table>
+          </div>
+          <div class="table-card">
+            <div class="table-card__title" id="sim-cf-title-2">Fluxo de Caixa - Equipamento 2</div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>COA-VP</th>
+                </tr>
+              </thead>
+              <tbody id="sim-cf-body-2"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="grid cols-2 cf-grid">
+          <div class="table-card">
+            <div class="table-card__title">Diferença entre os Equipamentos (2 - 1)</div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>COA-VP</th><th>Payback</th>
+                </tr>
+              </thead>
+              <tbody id="sim-cf-body-diff"></tbody>
+            </table>
+          </div>
+          <div class="chart-card">
+            <div class="table-card__title" style="padding-left:0;">Gráfico de Payback</div>
+            <canvas id="sim-cf-payback"></canvas>
           </div>
         </div>
       </div>

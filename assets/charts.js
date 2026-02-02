@@ -497,7 +497,7 @@ export function createComparadorChartsLite({
             label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`,
           },
         },
-        valueLabel: { display: false },
+        valueLabel: { display: true, stacked: true, formatter: formatCurrency },
         legend: { display: true },
       },
       layout: { padding: { top: 10 } },
@@ -505,7 +505,12 @@ export function createComparadorChartsLite({
         x: {
           stacked: true,
           title: { display: false },
-          ticks: { display: false },
+          ticks: {
+            display: true,
+            callback: (val, idx) => (labelsTotal[idx] ? labelsTotal[idx].split("\n") : undefined),
+            maxRotation: 0,
+            minRotation: 0,
+          },
         },
         y: {
           stacked: true,

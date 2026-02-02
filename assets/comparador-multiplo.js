@@ -49,12 +49,17 @@ const simState = {
     diasAno: 253,
     taxaReal: 0.01,
   },
+  binaryCompare: {
+    a: "",
+    b: "",
+  },
 };
 
 let equipmentData = [];
 let simCharts = { consumo: null, custo: null, total: null };
 let lastFiltered = [];
 let resizeAttached = false;
+let simPaybackChart = null;
 
 // Referências de elementos DOM
 const simLoaderEl = document.getElementById("sim-equipment-loader");
@@ -67,6 +72,15 @@ const simSelectionCard = document.getElementById("sim-selection-card");
 const simEquipmentListEl = document.getElementById("sim-equipment-list");
 const simAddEquipmentBtn = document.getElementById("sim-add-equipment");
 const simQtyInput = document.getElementById("sim-qty");
+const simCashflowCard = document.getElementById("sim-cashflow-card");
+const simCompareAEl = document.getElementById("sim-compare-a");
+const simCompareBEl = document.getElementById("sim-compare-b");
+const simCfTitle1 = document.getElementById("sim-cf-title-1");
+const simCfTitle2 = document.getElementById("sim-cf-title-2");
+const simCfBody1 = document.getElementById("sim-cf-body-1");
+const simCfBody2 = document.getElementById("sim-cf-body-2");
+const simCfBodyDiff = document.getElementById("sim-cf-body-diff");
+const simCfPaybackCanvas = document.getElementById("sim-cf-payback");
 
 // Referências de campos de filtro e inputs
 const simFilterFields = {
@@ -128,6 +142,11 @@ function updateAllSimResidualInputs() {
 function formatCurrencyBr(value) {
   const n = Number.isFinite(value) ? value : 0;
   return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatNumberBr(value, decimals = 2) {
+  const n = Number.isFinite(value) ? value : 0;
+  return n.toLocaleString("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 // Formata valores percentuais em BR
@@ -376,6 +395,381 @@ function getSimSelectedEntries(filtered) {
     .filter(Boolean);
 }
 
+function getSimLifeYearsMin(entries) {
+  const years = Math.min(
+    ...entries.map((entry) => {
+      const n = parseNumber(entry.anosVida, 10);
+      return n > 0 ? n : Infinity;
+    })
+  );
+  return Number.isFinite(years) && years > 0 ? years : 1;
+}
+
+function getSimEntryUid(entry) {
+  return `k-${entry.key}`;
+}
+
+function getSimEntryLabel(entry) {
+  const marca = entry?.eq?.marca || "Equipamento";
+  const potencia = entry?.eq?.potencia_btu ? `${entry.eq.potencia_btu} BTU/h` : "";
+  const tecnologia = entry?.eq?.tecnologia ? `(${entry.eq.tecnologia})` : "";
+  const modelo = entry?.eq?.modelo_concat ? `- ${entry.eq.modelo_concat}` : "";
+  return [marca, potencia, tecnologia, modelo].filter(Boolean).join(" ").trim();
+}
+
+function getSimChartLabel(entry) {
+  const nome = entry?.eq?.marca || "Equipamento";
+  const tecnologia = entry?.eq?.tecnologia || "";
+  return tecnologia ? `${nome}\n(${tecnologia})` : nome;
+}
+
+function destroySimPaybackChart() {
+  if (simPaybackChart) {
+    simPaybackChart.destroy();
+    simPaybackChart = null;
+  }
+}
+
+function buildSimCashflowRows(entry, years, taxaReal) {
+  const capex = parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0);
+  const energiaAnual = parseNumber(entry.custoEnergiaAnual, 0);
+  const manut = parseNumber(entry.manut, 0);
+  const descarte = parseNumber(entry.descarte, 0);
+  const taxa = Number.isFinite(taxaReal) ? taxaReal : 0.01;
+  const rows = [
+    {
+      ano: 0,
+      capex,
+      valorResidual: computeResidualValue(capex, 0, taxa),
+      descarte: 0,
+      manutencao: 0,
+      energia: 0,
+      coa: 0,
+      vpCoa: 0,
+      vpTotal: capex,
+    },
+  ];
+
+  for (let ano = 1; ano <= years; ano++) {
+    const valorResidualAno = computeResidualValue(capex, ano, taxa);
+    const descarteAno = ano === years ? descarte : 0;
+    const coa = energiaAnual + manut + descarteAno;
+    const vpCoa = coa / (1 + taxa) ** ano;
+    rows.push({
+      ano,
+      capex: 0,
+      valorResidual: valorResidualAno,
+      descarte: descarteAno,
+      manutencao: manut,
+      energia: energiaAnual,
+      coa,
+      vpCoa,
+      vpTotal: vpCoa,
+    });
+  }
+
+  return rows;
+}
+
+function renderSimCashflowTable(targetEl, rows, includePayback = false) {
+  if (!targetEl) return;
+  const sumField = (field) => rows.reduce((acc, r) => acc + (Number.isFinite(r[field]) ? r[field] : 0), 0);
+  const totals = {
+    ano: "Total",
+    capex: sumField("capex"),
+    valorResidual: null,
+    descarte: sumField("descarte"),
+    manutencao: sumField("manutencao"),
+    energia: sumField("energia"),
+    coa: sumField("coa"),
+    vpCoa: sumField("vpCoa"),
+  };
+
+  targetEl.innerHTML =
+    rows
+      .map(
+        (r) => `
+      <tr>
+        <td>${r.ano}</td>
+        <td>${formatNumberBr(r.capex, 2)}</td>
+        <td>${formatNumberBr(r.valorResidual, 2)}</td>
+        <td>${formatNumberBr(r.descarte, 2)}</td>
+        <td>${formatNumberBr(r.manutencao, 2)}</td>
+        <td>${formatNumberBr(r.energia, 2)}</td>
+        <td>${formatNumberBr(r.coa, 2)}</td>
+        <td>${formatNumberBr(r.vpCoa, 2)}</td>
+        ${includePayback ? `<td>${r.payback !== undefined ? formatNumberBr(r.payback, 2) : ""}</td>` : ""}
+      </tr>`
+      )
+      .join("") +
+    `
+    <tr>
+      <td>${totals.ano}</td>
+      <td>${formatNumberBr(totals.capex, 2)}</td>
+      <td></td>
+      <td>${formatNumberBr(totals.descarte, 2)}</td>
+      <td>${formatNumberBr(totals.manutencao, 2)}</td>
+      <td>${formatNumberBr(totals.energia, 2)}</td>
+      <td>${formatNumberBr(totals.coa, 2)}</td>
+      <td>${formatNumberBr(totals.vpCoa, 2)}</td>
+      ${includePayback ? "<td></td>" : ""}
+    </tr>`;
+}
+
+function clearSimCashflow() {
+  simCashflowCard?.classList.add("hidden");
+  if (simCfBody1) simCfBody1.innerHTML = "";
+  if (simCfBody2) simCfBody2.innerHTML = "";
+  if (simCfBodyDiff) simCfBodyDiff.innerHTML = "";
+  destroySimPaybackChart();
+}
+
+function updateSimBinarySelectors(computed) {
+  if (!simCompareAEl || !simCompareBEl) return;
+  const options = computed.map((entry, index) => ({
+    uid: getSimEntryUid(entry),
+    label: `Equipamento ${index + 1} - ${getSimEntryLabel(entry)}`,
+  }));
+  if (options.length < 2) {
+    simCompareAEl.innerHTML = "";
+    simCompareBEl.innerHTML = "";
+    return;
+  }
+
+  const hasA = options.some((o) => o.uid === simState.binaryCompare.a);
+  const hasB = options.some((o) => o.uid === simState.binaryCompare.b);
+  if (!hasA) simState.binaryCompare.a = options[0].uid;
+  if (!hasB || simState.binaryCompare.b === simState.binaryCompare.a) {
+    simState.binaryCompare.b = (options.find((o) => o.uid !== simState.binaryCompare.a) || options[0]).uid;
+  }
+
+  const optionHtml = options.map((o) => `<option value="${o.uid}">${o.label}</option>`).join("");
+  simCompareAEl.innerHTML = optionHtml;
+  simCompareBEl.innerHTML = optionHtml;
+  simCompareAEl.value = simState.binaryCompare.a;
+  simCompareBEl.value = simState.binaryCompare.b;
+}
+
+function updateSimCashflowComparison(computed) {
+  if (!simCashflowCard) return;
+  updateSimBinarySelectors(computed);
+  if (!simCompareAEl || !simCompareBEl) return;
+
+  const aUid = simState.binaryCompare.a;
+  const bUid = simState.binaryCompare.b;
+  if (!aUid || !bUid || aUid === bUid) {
+    clearSimCashflow();
+    return;
+  }
+
+  const eqA = computed.find((c) => getSimEntryUid(c) === aUid);
+  const eqB = computed.find((c) => getSimEntryUid(c) === bUid);
+  if (!eqA || !eqB) {
+    clearSimCashflow();
+    return;
+  }
+
+  const anosA = Math.max(1, parseNumber(eqA.anosVida, 10));
+  const anosB = Math.max(1, parseNumber(eqB.anosVida, 10));
+  const years = Math.min(anosA, anosB);
+  const taxaReal = parseNumber(simState.usage.taxaReal, 0.01);
+
+  const rowsA = buildSimCashflowRows(eqA, years, taxaReal);
+  const rowsB = buildSimCashflowRows(eqB, years, taxaReal);
+  const rowsDiff = rowsB.map((rB, idx) => {
+    const rA = rowsA[idx];
+    return {
+      ano: rB.ano,
+      capex: rB.capex - rA.capex,
+      valorResidual: rB.valorResidual - rA.valorResidual,
+      descarte: rB.descarte - rA.descarte,
+      manutencao: rB.manutencao - rA.manutencao,
+      energia: rB.energia - rA.energia,
+      coa: rB.coa - rA.coa,
+      vpCoa: rB.vpCoa - rA.vpCoa,
+      payback: 0,
+    };
+  });
+
+  let acumulado = 0;
+  rowsDiff.forEach((r) => {
+    acumulado += r.capex + r.vpCoa;
+    r.payback = acumulado;
+  });
+
+  if (simCfTitle1) simCfTitle1.textContent = `Fluxo de Caixa - Equipamento 1: ${eqA.eq.marca}`;
+  if (simCfTitle2) simCfTitle2.textContent = `Fluxo de Caixa - Equipamento 2: ${eqB.eq.marca}`;
+  renderSimCashflowTable(simCfBody1, rowsA, false);
+  renderSimCashflowTable(simCfBody2, rowsB, false);
+  renderSimCashflowTable(simCfBodyDiff, rowsDiff, true);
+
+  destroySimPaybackChart();
+  if (simCfPaybackCanvas) {
+    const labelsBase = rowsDiff.map((r) => r.ano);
+    const paybacksBase = rowsDiff.map((r) => r.payback);
+    const cumulativeFromRows = (rows) => {
+      let acc = 0;
+      return rows.map((r) => {
+        acc += r.vpTotal;
+        return acc;
+      });
+    };
+    const cumEq1Base = cumulativeFromRows(rowsA);
+    const cumEq2Base = cumulativeFromRows(rowsB);
+
+    const labels = [];
+    const paybacks = [];
+    const cumEq1 = [];
+    const cumEq2 = [];
+    for (let i = 0; i < labelsBase.length; i++) {
+      labels.push(labelsBase[i]);
+      paybacks.push(paybacksBase[i]);
+      cumEq1.push(cumEq1Base[i]);
+      cumEq2.push(cumEq2Base[i]);
+      if (i < labelsBase.length - 1) {
+        const midLabel = (labelsBase[i] + labelsBase[i + 1]) / 2;
+        const midPayback = paybacksBase[i] + (paybacksBase[i + 1] - paybacksBase[i]) * 0.5;
+        const midCum1 = cumEq1Base[i] + (cumEq1Base[i + 1] - cumEq1Base[i]) * 0.5;
+        const midCum2 = cumEq2Base[i] + (cumEq2Base[i + 1] - cumEq2Base[i]) * 0.5;
+        labels.push(midLabel);
+        paybacks.push(midPayback);
+        cumEq1.push(midCum1);
+        cumEq2.push(midCum2);
+      }
+    }
+
+    const len = paybacks.length;
+    const crossIdx = paybacks.findIndex((v) => v >= 0);
+    const negData = Array(len).fill(null);
+    const posData = Array(len).fill(null);
+    if (crossIdx === -1) {
+      for (let i = 0; i < len; i++) negData[i] = paybacks[i];
+    } else if (crossIdx === 0) {
+      for (let i = 0; i < len; i++) posData[i] = paybacks[i];
+    } else {
+      for (let i = 0; i < len; i++) {
+        if (i < crossIdx) negData[i] = paybacks[i];
+        else posData[i] = paybacks[i];
+      }
+      negData[crossIdx] = 0;
+      posData[crossIdx - 1] = 0;
+    }
+
+    simPaybackChart = new Chart(simCfPaybackCanvas, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Curva Resultante",
+            data: paybacks,
+            borderColor: BLUE_PALETTE[0],
+            backgroundColor: "rgba(11, 92, 138, 0.2)",
+            tension: 0.15,
+            fill: false,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            spanGaps: true,
+            borderWidth: 3,
+            pointBorderWidth: 2,
+            pointBackgroundColor: "#fff",
+            pointStyle: "circle",
+          },
+          {
+            label: `${eqA.eq.marca} (VP Operação)`,
+            data: cumEq1,
+            borderColor: BLUE_PALETTE[4],
+            backgroundColor: "transparent",
+            tension: 0.15,
+            fill: false,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            spanGaps: true,
+            borderWidth: 2.4,
+            pointBorderWidth: 1.6,
+            pointBackgroundColor: "#fff",
+            pointStyle: "circle",
+          },
+          {
+            label: `${eqB.eq.marca} (VP Operação)`,
+            data: cumEq2,
+            borderColor: BLUE_PALETTE[2],
+            backgroundColor: "transparent",
+            tension: 0.15,
+            fill: false,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            spanGaps: true,
+            borderWidth: 2.4,
+            pointBorderWidth: 1.6,
+            pointBackgroundColor: "#fff",
+            pointStyle: "circle",
+          },
+          {
+            label: "Investimento",
+            data: negData,
+            borderColor: "rgba(229, 83, 83, 0.7)",
+            borderWidth: 1.2,
+            backgroundColor: "rgba(229, 83, 83, 0.18)",
+            tension: 0.15,
+            fill: "origin",
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            spanGaps: true,
+            pointStyle: "rectRounded",
+          },
+          {
+            label: "Lucro",
+            data: posData,
+            borderColor: "rgba(46, 160, 67, 0.7)",
+            borderWidth: 1.2,
+            backgroundColor: "rgba(46, 160, 67, 0.18)",
+            tension: 0.15,
+            fill: "origin",
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            spanGaps: true,
+            pointStyle: "rectRounded",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.6,
+        layout: { padding: { top: 8, bottom: 8, left: 6, right: 6 } },
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            labels: {
+              usePointStyle: true,
+              boxWidth: 18,
+              boxHeight: 8,
+              padding: 12,
+            },
+          },
+          tooltip: { intersect: false, mode: "index" },
+        },
+        scales: {
+          x: {
+            title: { display: true, text: "Ano" },
+            ticks: {
+              callback: (value, index) => {
+                const lbl = labels[index];
+                return Number.isInteger(lbl) ? lbl : "";
+              },
+            },
+          },
+          y: { title: { display: true, text: "R$ acumulado" } },
+        },
+      },
+    });
+  }
+
+  simCashflowCard.classList.remove("hidden");
+}
+
 // Constrói as opções dos filtros com base na base de dados
 function simPopulateFilterOptions() {
   if (!simFilterFields.tipo) return;
@@ -413,6 +807,7 @@ function simUpdateVisibility(filtered) {
   simSelectionCard?.classList.toggle("hidden", !equipmentData.length);
   simUsageCard?.classList.toggle("hidden", !hasData);
   simChartsCard?.classList.toggle("hidden", !hasData);
+  simCashflowCard?.classList.toggle("hidden", !hasData);
 }
 
 // Atualiza os gráficos do comparador com base nos equipamentos selecionados
@@ -422,6 +817,7 @@ function simUpdateCharts(filtered) {
   if (selected.length < 2) {
     simChartsCard.classList.add("hidden");
     destroyChartGroup(simCharts);
+    clearSimCashflow();
     return;
   }
 
@@ -433,7 +829,7 @@ function simUpdateCharts(filtered) {
     descarte: parseNumber(entry.descarte, 0),
   }));
 
-  const lifeYears = 1;
+  const lifeYears = getSimLifeYearsMin(entries);
   const computed = computeEnergyTotals(entries, simState.usage, lifeYears).map((entry, idx) => ({
     ...entry,
     color: BLUE_PALETTE[idx % BLUE_PALETTE.length],
@@ -441,13 +837,10 @@ function simUpdateCharts(filtered) {
 
   const sortedByConsumo = [...computed].sort((a, b) => a.consumoTotal - b.consumoTotal);
   const sortedByCusto = [...computed].sort((a, b) => a.custoEnergiaPV - b.custoEnergiaPV);
-  const sortedByTotal = [...computed].sort(
-    (a, b) => (a.custoAq + a.custoInst + a.custoEnergiaPV) - (b.custoAq + b.custoInst + b.custoEnergiaPV)
-  );
 
   const labelsConsumo = sortedByConsumo.map((_, idx) => (idx + 1).toString());
   const labelsCusto = sortedByCusto.map((_, idx) => (idx + 1).toString());
-  const labelsTotal = sortedByTotal.map((_, idx) => (idx + 1).toString());
+  const labelsTotal = computed.map((entry) => getSimChartLabel(entry));
   const tooltipFor = (item) => {
     const marca = item.eq.marca || "Equipamento";
     const potencia = item.eq.potencia_btu ? `${item.eq.potencia_btu} BTU/h` : "";
@@ -455,14 +848,14 @@ function simUpdateCharts(filtered) {
   };
   const tooltipLabelsConsumo = sortedByConsumo.map(tooltipFor);
   const tooltipLabelsCusto = sortedByCusto.map(tooltipFor);
-  const tooltipLabelsTotal = sortedByTotal.map(tooltipFor);
+  const tooltipLabelsTotal = computed.map(tooltipFor);
   const colorScaleConsumo = sortedByConsumo.map((c) => c.color);
   const colorScaleCusto = sortedByCusto.map((c) => c.color);
   const consumos = sortedByConsumo.map((c) => c.consumoTotal);
   const custosEnergia = sortedByCusto.map((c) => c.custoEnergiaPV);
-  const custosAquisicao = sortedByTotal.map((c) => c.custoAq);
-  const custosInstalacao = sortedByTotal.map((c) => c.custoInst);
-  const custosEnergiaTotal = sortedByTotal.map((c) => c.custoEnergiaPV);
+  const custosAquisicao = computed.map((c) => c.custoAq);
+  const custosInstalacao = computed.map((c) => c.custoInst);
+  const custosEnergiaTotal = computed.map((c) => c.custoEnergiaPV);
 
   const barWidth = 24;
   const consumoCanvas = document.getElementById("sim-chart-consumo");
@@ -493,6 +886,7 @@ function simUpdateCharts(filtered) {
   });
 
   simChartsCard.classList.remove("hidden");
+  updateSimCashflowComparison(computed);
 }
 
 // Aplica os filtros selecionados no comparador
@@ -671,6 +1065,28 @@ function attachSimEvents() {
       }
       simUpdateCharts(lastFiltered);
       simUpdateVisibility(lastFiltered);
+    });
+  }
+
+  if (simCompareAEl) {
+    simCompareAEl.addEventListener("change", () => {
+      simState.binaryCompare.a = simCompareAEl.value;
+      if (simState.binaryCompare.a === simState.binaryCompare.b) {
+        const alt = Array.from(simCompareBEl?.options || []).find((opt) => opt.value !== simState.binaryCompare.a);
+        if (alt) simState.binaryCompare.b = alt.value;
+      }
+      simUpdateCharts(lastFiltered);
+    });
+  }
+
+  if (simCompareBEl) {
+    simCompareBEl.addEventListener("change", () => {
+      simState.binaryCompare.b = simCompareBEl.value;
+      if (simState.binaryCompare.b === simState.binaryCompare.a) {
+        const alt = Array.from(simCompareAEl?.options || []).find((opt) => opt.value !== simState.binaryCompare.b);
+        if (alt) simState.binaryCompare.a = alt.value;
+      }
+      simUpdateCharts(lastFiltered);
     });
   }
 }
