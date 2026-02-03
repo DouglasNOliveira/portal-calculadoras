@@ -1,12 +1,11 @@
-// Arquivo responsável por gerenciar o comparador em lote de ar-condicionado,
-
+// ARQUIVO RESPONSÁVEL POR GERENCIAR O COMPARADOR MÚLTIPLO DE EQUIPAMENTOS
 import { computeEnergyTotals } from "./energy.js";
 import { createComparadorChartsLite, destroyChartGroup, BLUE_PALETTE } from "./charts.js";
 
 const DEPRECIACAO_ANUAL = 0.1;
 const CURRENCY_DECIMALS = 2;
 
-// Estado do comparador simultâneo
+// ESTADO DO COMPARADOR SIMULTÂNEO
 const simState = {
   filters: { tipo: "all", tecnologia: "all", funcao: "all", potencia: "all", tensao: "all", classe: "all" },
   equipments: [
@@ -71,7 +70,8 @@ const simResultCount = document.getElementById("sim-result-count");
 const simSelectionCard = document.getElementById("sim-selection-card");
 const simEquipmentListEl = document.getElementById("sim-equipment-list");
 const simAddEquipmentBtn = document.getElementById("sim-add-equipment");
-const simQtyInput = document.getElementById("sim-qty");
+const simAddInmetroBtn = document.getElementById("sim-add-inmetro");
+const simQtyCountEl = document.getElementById("sim-qty-count");
 const simCashflowCard = document.getElementById("sim-cashflow-card");
 const simCompareAEl = document.getElementById("sim-compare-a");
 const simCompareBEl = document.getElementById("sim-compare-b");
@@ -213,11 +213,8 @@ function defaultSimEntry() {
 }
 
 // Garante que o número de equipamentos no comparador esteja dentro dos limites
-function ensureSimEquipmentCount(count) {
-  const target = Math.max(2, Math.min(20, parseInt(count, 10) || 2));
-  while (simState.equipments.length < target) simState.equipments.push(defaultSimEntry());
-  if (simState.equipments.length > target) simState.equipments = simState.equipments.slice(0, target);
-  if (simQtyInput) simQtyInput.value = target.toString();
+function updateSimQtyDisplay() {
+  if (simQtyCountEl) simQtyCountEl.textContent = simState.equipments.length.toString();
 }
 
 // Constrói a lista de opções para seleção de equipamentos
@@ -248,7 +245,10 @@ function renderSimEquipmentCards(filtered) {
       .map(
         (entry, idx) => `
       <div class="equipment-card" data-key="${entry.key}">
-        <h4>Equipamento ${idx + 1}</h4>
+        <div class="equipment-card__head">
+          <h4>Equipamento ${idx + 1}</h4>
+          <button class="btn soft equipment-remove" data-role="sim-remove-equipment" data-key="${entry.key}" type="button" aria-label="Remover equipamento">✕</button>
+        </div>
         ${entry.mode === "manual"
           ? `
         <div class="sim-equipment-row manual">
@@ -309,7 +309,7 @@ function renderSimEquipmentCards(filtered) {
             <input type="number" data-role="sim-cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(simState.usage.taxaReal, 0.01))}" readonly />
           </div>
           <div>
-            <label>Desfazimento (R$)</label>
+            <label>Descarte (R$)</label>
             <input type="number" data-role="sim-cf-cd" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
           </div>
         </div>
@@ -343,7 +343,7 @@ function renderSimEquipmentCards(filtered) {
             <input type="number" data-role="sim-cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(simState.usage.taxaReal, 0.01))}" readonly />
           </div>
           <div>
-            <label>Desfazimento (R$)</label>
+            <label>Descarte (R$)</label>
             <input type="number" data-role="sim-cf-cd" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
           </div>
         </div>
@@ -353,6 +353,7 @@ function renderSimEquipmentCards(filtered) {
       )
       .join("") || '<div class="notice">Nenhum equipamento disponivel com estes filtros.</div>';
 
+  updateSimQtyDisplay();
   simState.equipments.forEach((entry) => {
     const select = simEquipmentListEl.querySelector(`select[data-key="${entry.key}"]`);
     if (select) {
@@ -440,7 +441,7 @@ function buildSimCashflowRows(entry, years, taxaReal) {
     {
       ano: 0,
       capex,
-      valorResidual: computeResidualValue(capex, 0, taxa),
+      valorResidual: 0,
       descarte: 0,
       manutencao: 0,
       energia: 0,
@@ -451,9 +452,10 @@ function buildSimCashflowRows(entry, years, taxaReal) {
   ];
 
   for (let ano = 1; ano <= years; ano++) {
-    const valorResidualAno = computeResidualValue(capex, ano, taxa);
-    const descarteAno = ano === years ? descarte : 0;
-    const coa = energiaAnual + manut + descarteAno;
+    const valorResidualAno = ano === years ? computeResidualValue(capex, ano, taxa) : 0;
+    const descarteVp = ano === years ? descarte / (1 + taxa) ** ano : 0;
+    const descarteAno = descarteVp - valorResidualAno;
+    const coa = energiaAnual + manut;
     const vpCoa = coa / (1 + taxa) ** ano;
     rows.push({
       ano,
@@ -464,7 +466,7 @@ function buildSimCashflowRows(entry, years, taxaReal) {
       energia: energiaAnual,
       coa,
       vpCoa,
-      vpTotal: vpCoa,
+      vpTotal: vpCoa + descarteAno,
     });
   }
 
@@ -476,13 +478,14 @@ function renderSimCashflowTable(targetEl, rows, includePayback = false) {
   const sumField = (field) => rows.reduce((acc, r) => acc + (Number.isFinite(r[field]) ? r[field] : 0), 0);
   const totals = {
     ano: "Total",
-    capex: sumField("capex"),
+    capex: rows.find((r) => r.ano === 0)?.capex ?? sumField("capex"),
     valorResidual: null,
-    descarte: sumField("descarte"),
+    descarte: rows[rows.length - 1]?.descarte ?? 0,
     manutencao: sumField("manutencao"),
     energia: sumField("energia"),
     coa: sumField("coa"),
     vpCoa: sumField("vpCoa"),
+    vpTotal: sumField("vpTotal"),
   };
 
   targetEl.innerHTML =
@@ -496,8 +499,8 @@ function renderSimCashflowTable(targetEl, rows, includePayback = false) {
         <td>${formatNumberBr(r.descarte, 2)}</td>
         <td>${formatNumberBr(r.manutencao, 2)}</td>
         <td>${formatNumberBr(r.energia, 2)}</td>
-        <td>${formatNumberBr(r.coa, 2)}</td>
         <td>${formatNumberBr(r.vpCoa, 2)}</td>
+        <td>${formatNumberBr(r.vpTotal, 2)}</td>
         ${includePayback ? `<td>${r.payback !== undefined ? formatNumberBr(r.payback, 2) : ""}</td>` : ""}
       </tr>`
       )
@@ -510,8 +513,8 @@ function renderSimCashflowTable(targetEl, rows, includePayback = false) {
       <td>${formatNumberBr(totals.descarte, 2)}</td>
       <td>${formatNumberBr(totals.manutencao, 2)}</td>
       <td>${formatNumberBr(totals.energia, 2)}</td>
-      <td>${formatNumberBr(totals.coa, 2)}</td>
       <td>${formatNumberBr(totals.vpCoa, 2)}</td>
+      <td>${formatNumberBr(totals.vpTotal, 2)}</td>
       ${includePayback ? "<td></td>" : ""}
     </tr>`;
 }
@@ -578,22 +581,26 @@ function updateSimCashflowComparison(computed) {
   const rowsB = buildSimCashflowRows(eqB, years, taxaReal);
   const rowsDiff = rowsB.map((rB, idx) => {
     const rA = rowsA[idx];
+    const capexDiff = rB.capex - rA.capex;
+    const vpCoaDiff = rB.vpCoa - rA.vpCoa;
     return {
       ano: rB.ano,
-      capex: rB.capex - rA.capex,
+      capex: capexDiff,
       valorResidual: rB.valorResidual - rA.valorResidual,
       descarte: rB.descarte - rA.descarte,
       manutencao: rB.manutencao - rA.manutencao,
       energia: rB.energia - rA.energia,
       coa: rB.coa - rA.coa,
-      vpCoa: rB.vpCoa - rA.vpCoa,
+      vpCoa: vpCoaDiff,
+      vpTotal: rB.vpTotal - rA.vpTotal,
+      vpPayback: capexDiff + vpCoaDiff,
       payback: 0,
     };
   });
 
   let acumulado = 0;
   rowsDiff.forEach((r) => {
-    acumulado += r.capex + r.vpCoa;
+    acumulado += r.vpPayback;
     r.payback = acumulado;
   });
 
@@ -610,7 +617,7 @@ function updateSimCashflowComparison(computed) {
     const cumulativeFromRows = (rows) => {
       let acc = 0;
       return rows.map((r) => {
-        acc += r.vpTotal;
+        acc += r.capex + r.vpCoa;
         return acc;
       });
     };
@@ -970,20 +977,22 @@ function attachSimEvents() {
   setRangeFill(simUsageInputs.dias);
   setRangeFill(simUsageInputs.taxa);
 
-  if (simQtyInput) {
-    simQtyInput.addEventListener("change", () => {
-      ensureSimEquipmentCount(simQtyInput.value);
+  updateSimQtyDisplay();
+
+  if (simAddInmetroBtn) {
+    simAddInmetroBtn.addEventListener("click", () => {
+      if (simState.equipments.length >= 20) return;
+      simState.equipments.push(defaultSimEntry());
       renderSimEquipmentCards(lastFiltered);
       simUpdateCharts(lastFiltered);
       simUpdateVisibility(lastFiltered);
     });
-    ensureSimEquipmentCount(simQtyInput.value);
   }
 
   if (simAddEquipmentBtn) {
     simAddEquipmentBtn.addEventListener("click", () => {
+      if (simState.equipments.length >= 20) return;
       simState.equipments.push({ ...defaultSimEntry(), mode: "manual" });
-      if (simQtyInput) simQtyInput.value = simState.equipments.length.toString();
       renderSimEquipmentCards(lastFiltered);
       simUpdateCharts(lastFiltered);
       simUpdateVisibility(lastFiltered);
@@ -991,6 +1000,18 @@ function attachSimEvents() {
   }
 
   if (simEquipmentListEl) {
+    simEquipmentListEl.addEventListener("click", (event) => {
+      const target = event.target;
+      const role = target?.dataset?.role;
+      const key = target?.dataset?.key;
+      if (role !== "sim-remove-equipment" || !key) return;
+      if (simState.equipments.length <= 1) return;
+      simState.equipments = simState.equipments.filter((e) => e.key.toString() !== key.toString());
+      renderSimEquipmentCards(lastFiltered);
+      simUpdateCharts(lastFiltered);
+      simUpdateVisibility(lastFiltered);
+    });
+
     simEquipmentListEl.addEventListener("change", (event) => {
       const target = event.target;
       const role = target?.dataset?.role;

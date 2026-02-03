@@ -348,7 +348,7 @@ function renderEquipmentCards() {
               <input type="number" data-role="cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(state.usage.taxaReal, 0.01))}" readonly />
             </div>
             <div>
-              <label>Desfazimento (R$)</label>
+              <label>Descarte (R$)</label>
               <input type="number" data-role="cf-cd" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
             </div>
           </div>
@@ -379,7 +379,7 @@ function renderEquipmentCards() {
             <input type="number" data-role="cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(state.usage.taxaReal, 0.01))}" readonly />
           </div>
           <div>
-            <label>Desfazimento (R$)</label>
+            <label>Descarte (R$)</label>
             <input type="number" data-role="cf-cd" data-key="${entry.key}" min="0" step="1" value="${entry.descarte ?? 0}" />
           </div>
         </div>
@@ -871,7 +871,7 @@ function buildCashflowRows(item, params) {
       capex,
       energia: 0,
       manutencao: 0,
-      valorResidual: computeResidualValue(capex, 0, taxa),
+      valorResidual: 0,
       descarte: 0,
       coa: 0,
       vpCoa: 0,
@@ -883,13 +883,15 @@ function buildCashflowRows(item, params) {
     const capexAno = 0;
     const energiaAno = energiaAnual;
     const manutAno = manut;
-    const valorResidualAno = computeResidualValue(capex, ano, taxa);
-    const descarteAno = ano === years ? descarte : 0;
-    const coa = energiaAno + manutAno + descarteAno;
+    const valorResidualAno = ano === years ? computeResidualValue(capex, ano, taxa) : 0;
+    const descarteVp = ano === years ? descarte / (1 + taxa) ** ano : 0;
+    // Convencao de sinais (custo): CD positivo aumenta custo; VR reduz custo (terminal).
+    const descarteAno = descarteVp - valorResidualAno;
+    const coa = energiaAno + manutAno;
     const vpCoa = coa / (1 + taxa) ** ano;
     const vpCapex = capexAno / (1 + taxa) ** Math.max(ano - 1, 0);
-    const total = capexAno + coa;
-    const vpTotal = vpCapex + vpCoa;
+    const total = capexAno + coa + descarteAno;
+    const vpTotal = vpCapex + vpCoa + descarteAno;
 
     rows.push({
       ano,
@@ -913,11 +915,11 @@ function renderCashflowTable(targetEl, rows, includePayback = false, totals) {
   const formatMaybe = (value) => (value === null || value === undefined ? "" : formatNumberBr(value, 2));
   const totalsRow = totals || {
     ano: "Total",
-    capex: sumField("capex"),
+    capex: rows.find((r) => r.ano === 0)?.capex ?? sumField("capex"),
     manutencao: sumField("manutencao"),
     energia: sumField("energia"),
     valorResidual: null,
-    descarte: sumField("descarte"),
+    descarte: rows[rows.length - 1]?.descarte ?? 0,
     coa: sumField("coa"),
     vpCoa: sumField("vpCoa"),
     vpTotal: sumField("vpTotal"),
@@ -933,8 +935,8 @@ function renderCashflowTable(targetEl, rows, includePayback = false, totals) {
         <td>${formatNumberBr(r.descarte, 2)}</td>
         <td>${formatNumberBr(r.manutencao, 2)}</td>
         <td>${formatNumberBr(r.energia, 2)}</td>
-        <td>${formatNumberBr(r.coa, 2)}</td>
         <td>${formatNumberBr(r.vpCoa, 2)}</td>
+        <td>${formatNumberBr(r.vpTotal, 2)}</td>
         ${includePayback ? `<td>${r.payback !== undefined ? formatNumberBr(r.payback, 2) : ""}</td>` : ""}
       </tr>`
     )
@@ -947,8 +949,8 @@ function renderCashflowTable(targetEl, rows, includePayback = false, totals) {
       <td>${formatNumberBr(totalsRow.descarte, 2)}</td>
       <td>${formatNumberBr(totalsRow.manutencao, 2)}</td>
       <td>${formatNumberBr(totalsRow.energia, 2)}</td>
-      <td>${formatNumberBr(totalsRow.coa, 2)}</td>
       <td>${formatNumberBr(totalsRow.vpCoa, 2)}</td>
+      <td>${formatNumberBr(totalsRow.vpTotal, 2)}</td>
       ${includePayback ? `<td>${""}</td>` : ""}
     </tr>`;
 }
@@ -987,8 +989,8 @@ function updateCashflow(computed) {
     const descDiff = r2.descarte - r1.descarte;
     const coaDiff = r2.coa - r1.coa;
     const vpCoaDiff = r2.vpCoa - r1.vpCoa;
-    const vpCapexDiff = capexDiff / (1 + taxaReal) ** Math.max(r2.ano - 1, 0);
-    const vpTotalDiff = vpCapexDiff + vpCoaDiff;
+    const vpTotalDiff = r2.vpTotal - r1.vpTotal;
+    const vpPayback = capexDiff + vpCoaDiff;
     return {
       ano: r2.ano,
       capex: capexDiff,
@@ -999,6 +1001,7 @@ function updateCashflow(computed) {
       coa: coaDiff,
       vpCoa: vpCoaDiff,
       vpTotal: vpTotalDiff,
+      vpPayback,
       payback: 0,
     };
   });
@@ -1006,7 +1009,7 @@ function updateCashflow(computed) {
   let acumuladoVPDiff = 0;
   // Soma cumulativa do VP diferencial para localizar o ponto de payback.
   rowsDiff.forEach((row) => {
-    acumuladoVPDiff += row.vpTotal;
+    acumuladoVPDiff += row.vpPayback;
     row.payback = acumuladoVPDiff;
   });
 
@@ -1015,11 +1018,11 @@ function updateCashflow(computed) {
 
   const totals1 = {
     ano: "Total",
-    capex: sumField(rows1, "capex"),
+    capex: rows1.find((r) => r.ano === 0)?.capex ?? sumField(rows1, "capex"),
     manutencao: sumField(rows1, "manutencao"),
     energia: sumField(rows1, "energia"),
     valorResidual: null,
-    descarte: sumField(rows1, "descarte"),
+    descarte: rows1[rows1.length - 1]?.descarte ?? 0,
     coa: sumField(rows1, "coa"),
     vpCoa: sumField(rows1, "vpCoa"),
     vpTotal: sumField(rows1, "vpTotal"),
@@ -1027,11 +1030,11 @@ function updateCashflow(computed) {
 
   const totals2 = {
     ano: "Total",
-    capex: sumField(rows2, "capex"),
+    capex: rows2.find((r) => r.ano === 0)?.capex ?? sumField(rows2, "capex"),
     manutencao: sumField(rows2, "manutencao"),
     energia: sumField(rows2, "energia"),
     valorResidual: null,
-    descarte: sumField(rows2, "descarte"),
+    descarte: rows2[rows2.length - 1]?.descarte ?? 0,
     coa: sumField(rows2, "coa"),
     vpCoa: sumField(rows2, "vpCoa"),
     vpTotal: sumField(rows2, "vpTotal"),
@@ -1039,11 +1042,11 @@ function updateCashflow(computed) {
 
   const totalsDiff = {
     ano: "Total",
-    capex: sumField(rowsDiff, "capex"),
+    capex: rowsDiff.find((r) => r.ano === 0)?.capex ?? sumField(rowsDiff, "capex"),
     manutencao: sumField(rowsDiff, "manutencao"),
     energia: sumField(rowsDiff, "energia"),
     valorResidual: null,
-    descarte: sumField(rowsDiff, "descarte"),
+    descarte: rowsDiff[rowsDiff.length - 1]?.descarte ?? 0,
     coa: sumField(rowsDiff, "coa"),
     vpCoa: sumField(rowsDiff, "vpCoa"),
     vpTotal: sumField(rowsDiff, "vpTotal"),
@@ -1062,7 +1065,7 @@ function updateCashflow(computed) {
     const cumulativeFromRows = (rows) => {
       let acc = 0;
       return rows.map((r) => {
-        acc += r.vpTotal;
+        acc += r.capex + r.vpCoa;
         return acc;
       });
     };

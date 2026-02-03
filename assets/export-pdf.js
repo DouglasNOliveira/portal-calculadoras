@@ -499,7 +499,7 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
   if (dataset.cashflow) {
     const page3 = createSection(doc, "Fluxo de Caixa dos Equipamentos na Vida Útil", logoInfo, { addPage: true });
     const renderCashflowTable = (title, rows, totals) => {
-      const headers = ["Ano", "CO", "VR", "CD", "Manutenção", "Energia", "COA", "COA-VP"];
+      const headers = ["Ano", "CO", "VR", "CD", "Manutenção", "Energia", "COA", "CT"];
       const formatted = (rows || []).map((r) => [
         r.ano.toString(),
         formatCurrencyBr(r.capex),
@@ -507,8 +507,8 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
         formatCurrencyBr(r.descarte),
         formatCurrencyBr(r.manutencao),
         formatCurrencyBr(r.energia),
-        formatCurrencyBr(r.coa),
-        formatCurrencyBr(r.vpCoa ?? r.vpTotal),
+        formatCurrencyBr(r.vpCoa ?? 0),
+        formatCurrencyBr(r.vpTotal ?? r.vpCoa),
       ]);
       if (totals) {
         formatted.push([
@@ -518,13 +518,13 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
           formatCurrencyBr(totals.descarte),
           formatCurrencyBr(totals.manutencao),
           formatCurrencyBr(totals.energia),
-          formatCurrencyBr(totals.coa),
-          formatCurrencyBr(totals.vpCoa ?? totals.vpTotal),
+          formatCurrencyBr(totals.vpCoa ?? 0),
+          formatCurrencyBr(totals.vpTotal ?? totals.vpCoa),
         ]);
       }
       const widths = calcColWidths(doc, headers, formatted, {
         maxWidth: page3.contentWidth * 0.80,
-        minWidths: [35, 68, 68, 60, 68, 68, 68, 68],
+        minWidths: [35, 64, 64, 58, 64, 64, 64, 64],
         padding: 6,
         fontSize: 9,
       });
@@ -547,7 +547,7 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
   if (dataset.cashflow) {
     const page4 = createSection(doc, "Fluxo de Caixa da Diferença e Payback", logoInfo, { addPage: true });
     const title = `${eq1.eq.marca} e ${eq2.eq.marca} – ${formatNumberBr(eq1.eq.potencia_btu, 0)} BTU/h`;
-    const headers = ["Ano", "CO", "VR", "CD", "Manutenção", "Energia", "COA", "COA-VP", "Payback"];
+    const headers = ["Ano", "CO", "VR", "CD", "Manutenção", "Energia", "COA", "CT", "Payback"];
     const rowsDiff = (dataset.cashflow.rowsDiff || []).map((r) => [
       r.ano.toString(),
       formatCurrencyBr(r.capex),
@@ -555,8 +555,8 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
       formatCurrencyBr(r.descarte),
       formatCurrencyBr(r.manutencao),
       formatCurrencyBr(r.energia),
-      formatCurrencyBr(r.coa),
-      formatCurrencyBr(r.vpCoa ?? r.vpTotal),
+      formatCurrencyBr(r.vpCoa ?? 0),
+      formatCurrencyBr(r.vpTotal ?? r.vpCoa),
       formatCurrencyBr(r.payback ?? 0),
     ]);
     if (dataset.cashflow.totalsDiff) {
@@ -568,14 +568,14 @@ export async function downloadPdfExport({ dataset, charts, paybackChart }) {
         formatCurrencyBr(t.descarte),
         formatCurrencyBr(t.manutencao),
         formatCurrencyBr(t.energia),
-        formatCurrencyBr(t.coa),
-        formatCurrencyBr(t.vpCoa ?? t.vpTotal),
+        formatCurrencyBr(t.vpCoa ?? 0),
+        formatCurrencyBr(t.vpTotal ?? t.vpCoa),
         formatCurrencyBr(t.payback ?? 0),
       ]);
     }
     const widths = calcColWidths(doc, headers, rowsDiff, {
       maxWidth: page4.contentWidth * 0.80,
-      minWidths: [35, 68, 68, 60, 68, 68, 68, 68, 70],
+      minWidths: [35, 60, 60, 56, 60, 60, 60, 60, 64],
       padding: 5,
       fontSize: 9,
     });

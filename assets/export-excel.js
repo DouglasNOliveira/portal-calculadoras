@@ -25,8 +25,8 @@ function buildWorkbook(ds, lc) {
     CD: r.descarte,
     "COA-Manutencao": r.manutencao,
     "COA-Energia": r.energia,
-    COA: r.coa,
-    VP: r.vpCoa ?? r.vpTotal,
+    COA: r.vpCoa ?? 0,
+    CT: r.vpTotal ?? r.vpCoa,
     ...(includePayback ? { Payback: r.payback ?? 0 } : {}),
   });
 

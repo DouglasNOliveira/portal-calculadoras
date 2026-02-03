@@ -232,12 +232,14 @@
         <div class="flex-between">
           <div>
             <h3>Fluxo de Caixa na Vida Útil</h3>
-            <p class="lead">
-              Compare Custo de Obtenção (CO), Valor Residual anual a valor presente, 
-              Custo de Desfazimento, Custo de Operação e Apoio (COA) de Manutenção e 
-              Energia juntamente com seu valor presente. A comparação acontece no Payback 
-              entre os equipamentos selecionados.
-            </p>
+            <ul class="lead instructions">
+              <li>¹Custo de Obtenção [CO]: Soma dos valores de Aquisição e Instalação.</li>
+              <li>²Valor Residual [VR]: CO ajustado pela depreciação linear anual de 10%, a valor presente.</li>
+              <li>³Custo de Desfazimento [CD]: Soma do Valor Residual e do Custo de Descarte, a valor presente.</li>
+              <li>⁴Custo de Operação e Apoio [COA]: Soma dos custos de Manutenção e Energia, a valor presente.</li>
+              <li>⁵Custo Total [CT]: Soma de COA e CD no ano; no total, inclui também o CO do ano 0.</li>
+              <li>⁶Payback: Intersecção dos custos acumulados entre os equipamentos selecionados.</li>
+            </ul>
           </div>
         </div>
 
@@ -247,7 +249,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>COA-VP</th>
+                  <th>Ano</th><th>¹CO</th><th>²VR</th><th>³CD</th><th>Manutenção</th><th>Energia</th><th>⁴COA</th><th>⁵CT</th>
                 </tr>
               </thead>
               <tbody id="cf-body-1"></tbody>
@@ -258,7 +260,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>COA-VP</th>
+                  <th>Ano</th><th>¹CO</th><th>²VR</th><th>³CD</th><th>Manutenção</th><th>Energia</th><th>⁴COA</th><th>⁵CT</th>
                 </tr>
               </thead>
               <tbody id="cf-body-2"></tbody>
@@ -272,7 +274,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>COA-VP</th><th>Payback</th>
+                  <th>Ano</th><th>¹CO</th><th>²VR</th><th>³CD</th><th>Manutenção</th><th>Energia</th><th>⁴COA</th><th>⁵CT</th><th>⁶Payback</th>
                 </tr>
               </thead>
               <tbody id="cf-body-diff"></tbody>
@@ -401,13 +403,14 @@
         <div class="flex-between">
           <div>
             <h3>Seleção de Equipamentos</h3>
-            <p class="lead">Defina a quantidade e selecione os equipamentos para comparar em lote.</p>
+            <p class="lead">Adicione e selecione os equipamentos para comparar em lote.</p>
           </div>
           <div class="sim-selection-actions">
-            <div class="sim-qty-wrap">
-              <label>Qtde. Equipamentos</label>
-              <input type="number" id="sim-qty" min="2" max="20" step="1" value="2" />
+            <div class="sim-counter-wrap">
+              <label>Em Análise</label>
+              <div class="pill" id="sim-qty-count">2</div>
             </div>
+            <button class="btn add-equipment" id="sim-add-inmetro" type="button">+ Equipamento INMETRO</button>
             <button class="btn add-equipment" id="sim-add-equipment" type="button">+ Equipamento Não Listado</button>
           </div>
         </div>
@@ -498,7 +501,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>COA-VP</th>
+                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>CT</th>
                 </tr>
               </thead>
               <tbody id="sim-cf-body-1"></tbody>
@@ -509,7 +512,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>COA-VP</th>
+                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>CT</th>
                 </tr>
               </thead>
               <tbody id="sim-cf-body-2"></tbody>
@@ -522,7 +525,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>COA-VP</th><th>Payback</th>
+                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>CT</th><th>Payback</th>
                 </tr>
               </thead>
               <tbody id="sim-cf-body-diff"></tbody>
