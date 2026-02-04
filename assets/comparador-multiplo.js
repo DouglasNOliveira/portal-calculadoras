@@ -214,7 +214,7 @@ function defaultSimEntry() {
 
 // Garante que o número de equipamentos no comparador esteja dentro dos limites
 function updateSimQtyDisplay() {
-  if (simQtyCountEl) simQtyCountEl.textContent = simState.equipments.length.toString();
+  if (simQtyCountEl) simQtyCountEl.textContent = `Qtde. Equipamentos: ${simState.equipments.length}`;
 }
 
 // Constrói a lista de opções para seleção de equipamentos
@@ -247,7 +247,10 @@ function renderSimEquipmentCards(filtered) {
       <div class="equipment-card" data-key="${entry.key}">
         <div class="equipment-card__head">
           <h4>Equipamento ${idx + 1}</h4>
-          <button class="btn soft equipment-remove" data-role="sim-remove-equipment" data-key="${entry.key}" type="button" aria-label="Remover equipamento">✕</button>
+          <div class="equipment-card__actions">
+            <button class="btn btn-excel equipment-export" data-role="sim-export-equipment" data-key="${entry.key}" type="button" aria-label="Exportar equipamento para Excel">Excel</button>
+            <button class="btn soft equipment-remove" data-role="sim-remove-equipment" data-key="${entry.key}" type="button" aria-label="Remover equipamento">✕</button>
+          </div>
         </div>
         ${entry.mode === "manual"
           ? `

@@ -332,7 +332,7 @@ select:focus, input:focus { outline: none; border-color: var(--primary); box-sha
   background: #eef1f7;
   color: var(--muted);
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.91rem;
 }
 
 .notice {
@@ -798,6 +798,10 @@ input[type="range"]:focus-visible {
   min-width: 90px;
 }
 
+.sim-counter-wrap .pill {
+  padding: 10px 12px;
+}
+
 .equipment-card__head {
   display: flex;
   align-items: center;
@@ -805,21 +809,51 @@ input[type="range"]:focus-visible {
   gap: 12px;
 }
 
+.equipment-card__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.equipment-export {
+  min-height: 22px;
+  padding: 0 10px;
+  font-size: 0.8rem;
+  line-height: 1;
+  background: #eef1f7;
+  color: #5b6475;
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.equipment-export:hover {
+  background: linear-gradient(90deg, #278e4d, #227a42);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 16px 32px -14px rgba(47, 165, 90, 0.65);
+  transform: translateY(-1px);
+}
+
 .btn.equipment-remove {
-  min-width: 25px;
-  min-height: 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  min-height: 22px;
   padding: 0;
   border-radius: 999px;
   font-weight: 800;
   line-height: 1;
-  background: linear-gradient(90deg, #e65858, #d84545);
-  color: #fff;
-  border: none;
-  box-shadow: 0 12px 28px -14px rgba(230, 88, 88, 0.55);
+  background: #eef1f7;
+  color: #5b6475;
+  border: 1px solid var(--border);
+  box-shadow: none;
 }
 
 .btn.equipment-remove:hover {
   background: linear-gradient(90deg, #d84545, #c73a3a);
+  color: #fff;
+  border-color: transparent;
   box-shadow: 0 16px 32px -14px rgba(230, 88, 88, 0.65);
   transform: translateY(-1px);
 }
@@ -890,6 +924,21 @@ input[type="range"]:focus-visible {
 .btn-pdf:hover {
   background: linear-gradient(90deg, #d84545, #c73a3a);
   box-shadow: 0 16px 32px -14px rgba(230, 88, 88, 0.65);
+  transform: translateY(-1px);
+}
+
+.btn.btn-excel.equipment-export {
+  background: #eef1f7;
+  color: #5b6475;
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.btn.btn-excel.equipment-export:hover {
+  background: linear-gradient(90deg, #278e4d, #227a42);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 16px 32px -14px rgba(47, 165, 90, 0.65);
   transform: translateY(-1px);
 }
 
