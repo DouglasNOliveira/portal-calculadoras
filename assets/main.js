@@ -9,3 +9,11 @@ import { initComparador } from "./comparador.js";
 initTabs();
 renderModules();
 initComparador();
+
+// Renderiza fórmulas LaTeX (KaTeX) se disponível
+if (window.renderMathInElement) {
+  window.renderMathInElement(document.body, {
+    delimiters: [{ left: "\\(", right: "\\)", display: false }],
+    throwOnError: false,
+  });
+}

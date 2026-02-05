@@ -8,10 +8,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
   <link rel="stylesheet" href="assets/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
   <script src="assets/main.js" type="module" defer></script>
 </head>
 
@@ -232,14 +235,36 @@
         <div class="flex-between">
           <div>
             <h3>Fluxo de Caixa na Vida Útil</h3>
-            <ul class="lead instructions">
-              <li>¹Custo de Obtenção [CO]: Soma dos valores de Aquisição e Instalação.</li>
-              <li>²Valor Residual [VR]: CO ajustado pela depreciação linear anual de 10%, a valor presente.</li>
-              <li>³Custo de Desfazimento [CD]: Soma do Valor Residual e do Custo de Descarte, a valor presente.</li>
-              <li>⁴Custo de Operação e Apoio [COA]: Soma dos custos de Manutenção e Energia, a valor presente.</li>
-              <li>⁵Custo Total [CT]: Soma de COA e CD no ano; no total, inclui também o CO do ano 0.</li>
-              <li>⁶Payback: Intersecção dos custos acumulados entre os equipamentos selecionados.</li>
-            </ul>
+            <div class="cf-intro-grid">
+              <ul class="lead instructions">
+                <li>¹Custo de Obtenção [CO]: Soma dos valores de Aquisição e Instalação.</li>
+                <li>²Valor Residual [VR]: CO ajustado por depreciação linear até zero no fim da vida útil, a valor presente.</li>
+                <li>³Custo de Desfazimento [CD]: Soma do Valor Residual e do Custo de Descarte, a valor presente.</li>
+                <li>⁴Custo de Operação e Apoio [COA]: Soma dos custos de Manutenção e Energia, a valor presente.</li>
+                <li>⁵Custo Total [CT]: Soma de COA e CD no ano; no total, inclui também o CO do ano 0.</li>
+                <li>⁶Payback: Intersecção dos custos acumulados entre os equipamentos selecionados.</li>
+              </ul>
+              <div class="cf-formula-stack">
+                <div class="cf-formulas" data-katex>
+                  <div class="cf-formula-title">Valor Residual (VR)</div>
+                  <div>\(VR_t = \max\left(0, CO \cdot \left(1 - \frac{t}{L}\right)\right) \cdot (1+i)^{-t}\)</div>
+                  <div class="cf-formula-legend">\(CO\): aquisição + instalação</div>
+                  <div class="cf-formula-legend">\(L\): vida útil do equipamento (anos)</div>
+                  <div class="cf-formula-legend">\(t\): anos decorridos (horizonte)</div>
+                  <div class="cf-formula-legend">\(i\): taxa real</div>
+                </div>
+                <div class="cf-formulas" data-katex>
+                  <div class="cf-formula-title">Valor Presente (VP)</div>
+                  <div>\(COA_t = Man_t + E_t\)</div>
+                  <div>\(COA_t^{VP} = COA_t \cdot (1+i)^{-t}\)</div>
+                  <div>\(CD_t = Des_t^{VP} - VR_t\)</div>
+                  <div>\(CT_t = COA_t^{VP} + CD_t\)</div>
+                  <div class="cf-formula-legend">\(Man_t\): manutenção</div>
+                  <div class="cf-formula-legend">\(E_t\): energia</div>
+                  <div class="cf-formula-legend">\(Des_t^{VP}\): descarte em VP</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -480,7 +505,36 @@
       <div class="card hidden" id="sim-cashflow-card">
         <div class="flex-between">
           <div>
-            <h3>Comparação Binária no Lote</h3>
+            <h3>Fluxo de Caixa e Payback - Comparação Binária</h3>
+            <div class="cf-intro-grid">
+              <ul class="lead instructions">
+                <li>¹Custo de Obtenção [CO]: Soma dos valores de Aquisição e Instalação.</li>
+                <li>²Valor Residual [VR]: CO ajustado por depreciação linear até zero no fim da vida útil, a valor presente.</li>
+                <li>³Custo de Desfazimento [CD]: Soma do Valor Residual e do Custo de Descarte, a valor presente.</li>
+                <li>⁴Custo de Operação e Apoio [COA]: Soma dos custos de Manutenção e Energia, a valor presente.</li>
+                <li>⁵Custo Total [CT]: Soma de COA e CD no ano; no total, inclui também o CO do ano 0.</li>
+                <li>⁶Payback: Intersecção dos custos acumulados entre os equipamentos selecionados.</li>
+              </ul>
+              <div class="cf-formula-stack">
+                <div class="cf-formulas" data-katex>
+                  <div class="cf-formula-title">Valor Residual (VR)</div>
+                  <div>\(VR_t = \max\left(0, CO \cdot \left(1 - \frac{t}{L}\right)\right) \cdot (1+i)^{-t}\)</div>
+                  <div class="cf-formula-legend">\(CO\): aquisição + instalação</div>
+                  <div class="cf-formula-legend">\(L\): vida útil do equipamento (anos)</div>
+                  <div class="cf-formula-legend">\(t\): anos decorridos (horizonte)</div>
+                  <div class="cf-formula-legend">\(i\): taxa real</div>
+                </div>
+                <div class="cf-formulas" data-katex>
+                  <div class="cf-formula-title">Valor Presente (VP)</div>
+                  <div>\(COA_t^{VP} = (Man_t + E_t) \cdot (1+i)^{-t}\)</div>
+                  <div>\(CD_t = Des_t^{VP} - VR_t\)</div>
+                  <div>\(CT_t = COA_t^{VP} + CD_t\)</div>
+                  <div class="cf-formula-legend">\(Man_t\): manutenção</div>
+                  <div class="cf-formula-legend">\(E_t\): energia</div>
+                  <div class="cf-formula-legend">\(Des_t^{VP}\): descarte em VP</div>
+                </div>
+              </div>
+            </div>
             <p class="lead">Selecione dois equipamentos do lote para gerar fluxo de caixa comparativo e payback.</p>
           </div>
         </div>
@@ -500,7 +554,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>CT</th>
+                  <th>Ano</th><th>¹CO</th><th>²VR</th><th>³CD</th><th>Manutenção</th><th>Energia</th><th>⁴COA</th><th>⁵CT</th>
                 </tr>
               </thead>
               <tbody id="sim-cf-body-1"></tbody>
@@ -511,7 +565,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>CT</th>
+                  <th>Ano</th><th>¹CO</th><th>²VR</th><th>³CD</th><th>Manutenção</th><th>Energia</th><th>⁴COA</th><th>⁵CT</th>
                 </tr>
               </thead>
               <tbody id="sim-cf-body-2"></tbody>
@@ -524,7 +578,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Ano</th><th>CO</th><th>VR</th><th>CD</th><th>Manutenção</th><th>Energia</th><th>COA</th><th>CT</th><th>Payback</th>
+                  <th>Ano</th><th>¹CO</th><th>²VR</th><th>³CD</th><th>Manutenção</th><th>Energia</th><th>⁴COA</th><th>⁵CT</th><th>⁶Payback</th>
                 </tr>
               </thead>
               <tbody id="sim-cf-body-diff"></tbody>
@@ -759,7 +813,7 @@
 
   <!-- RODAPÉ -->
   <footer class="footer">
-    2025 (β 1.0) - Portal de Calculadoras - Desenvolvido na CGF
+    2026 (β 1.0) - Portal de Calculadoras - Desenvolvido na CGF
   </footer>
 
 </body>

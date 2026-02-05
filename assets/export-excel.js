@@ -15,7 +15,7 @@ function buildWorkbook(ds, lc) {
     CustoEnergia_Total: c.custoEnergiaTotal,
     COA_Total: c.coaTotal,
     Total_Vida: c.totalVida,
-    Total_Vida_PV: c.totalVidaPV,
+    CT: c.totalVidaPV,
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo), "CB_Resumo");
 

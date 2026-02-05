@@ -3,7 +3,6 @@ import { computeEnergyTotals } from "./energy.js";
 import { createComparadorChartsLite, destroyChartGroup, BLUE_PALETTE } from "./charts.js";
 import { downloadSingleEquipmentExcel } from "./export-excel.js";
 
-const DEPRECIACAO_ANUAL = 0.1;
 const CURRENCY_DECIMALS = 2;
 
 // ESTADO DO COMPARADOR SIMULTÂNEO
@@ -116,10 +115,13 @@ function roundCurrency(value) {
   return Math.round(value * factor) / factor;
 }
 
-function computeResidualValue(capex, years, rate = 0) {
-  const vr = capex * (1 - DEPRECIACAO_ANUAL * years);
+function computeResidualValue(capex, elapsedYears, totalLifeYears = 10, rate = 0) {
+  const vidaBase = Math.max(1, parseNumber(totalLifeYears, 10));
+  const anosDecorridos = Math.max(0, Math.min(parseNumber(elapsedYears, 0), vidaBase));
+  const depAnual = 1 / vidaBase;
+  const vr = capex * (1 - depAnual * anosDecorridos);
   const base = vr > 0 ? vr : 0;
-  const pv = rate ? base / (1 + rate) ** years : base;
+  const pv = rate ? base / (1 + rate) ** anosDecorridos : base;
   return roundCurrency(pv);
 }
 
@@ -127,8 +129,9 @@ function updateSimResidualInputs(entry) {
   if (!simEquipmentListEl || !entry) return;
   const capex = parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0);
   const anosVida = parseNumber(entry.anosVida, 10);
+  const anosAnalise = getSimLifeYearsMin(simState.equipments);
   const taxaReal = parseNumber(simState.usage.taxaReal, 0.01);
-  const valorResidual = computeResidualValue(capex, anosVida, taxaReal);
+  const valorResidual = computeResidualValue(capex, anosAnalise, anosVida, taxaReal);
   const inputs = simEquipmentListEl.querySelectorAll(`input[data-role="sim-cf-vr"][data-key="${entry.key}"]`);
   inputs.forEach((input) => {
     input.value = valorResidual;
@@ -311,7 +314,7 @@ function renderSimEquipmentCards(filtered) {
           </div>
           <div>
             <label>Valor Residual (R$)</label>
-            <input type="number" data-role="sim-cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(simState.usage.taxaReal, 0.01))}" readonly />
+            <input type="number" data-role="sim-cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(entry.anosVida, 10), parseNumber(simState.usage.taxaReal, 0.01))}" readonly />
           </div>
           <div>
             <label>Descarte (R$)</label>
@@ -345,7 +348,7 @@ function renderSimEquipmentCards(filtered) {
           </div>
           <div>
             <label>Valor Residual (R$)</label>
-            <input type="number" data-role="sim-cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(simState.usage.taxaReal, 0.01))}" readonly />
+            <input type="number" data-role="sim-cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(entry.anosVida, 10), parseNumber(simState.usage.taxaReal, 0.01))}" readonly />
           </div>
           <div>
             <label>Descarte (R$)</label>
@@ -464,7 +467,8 @@ function buildSimCashflowRows(entry, years, taxaReal) {
   ];
 
   for (let ano = 1; ano <= years; ano++) {
-    const valorResidualAno = ano === years ? computeResidualValue(capex, ano, taxa) : 0;
+    const vidaEquip = Math.max(1, parseNumber(entry.anosVida, years));
+    const valorResidualAno = ano === years ? computeResidualValue(capex, ano, vidaEquip, taxa) : 0;
     const descarteVp = ano === years ? descarte / (1 + taxa) ** ano : 0;
     const descarteAno = descarteVp - valorResidualAno;
     const coa = energiaAnual + manut;
@@ -1074,7 +1078,7 @@ function attachSimEvents() {
           break;
         case "sim-cf-anos":
           entry.anosVida = target.value;
-          updateSimResidualInputs(entry);
+          updateAllSimResidualInputs();
           break;
         default:
           break;
@@ -1104,18 +1108,18 @@ function attachSimEvents() {
           break;
         case "sim-custo-aq":
           entry.custoAq = target.value;
-          updateSimResidualInputs(entry);
+          updateAllSimResidualInputs();
           break;
         case "sim-custo-inst":
           entry.custoInst = target.value;
-          updateSimResidualInputs(entry);
+          updateAllSimResidualInputs();
           break;
         case "sim-cf-manut":
           entry.manut = target.value;
           break;
         case "sim-cf-anos":
           entry.anosVida = target.value;
-          updateSimResidualInputs(entry);
+          updateAllSimResidualInputs();
           break;
         case "sim-cf-cd":
           entry.descarte = target.value;

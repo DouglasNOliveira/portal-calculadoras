@@ -8,7 +8,6 @@ import { downloadExcel } from "./export-excel.js";
 import { downloadPdfExport } from "./export-pdf.js";
 import { initComparadorMultiplo, showComparadorMultiploError } from "./comparador-multiplo.js";
 
-const DEPRECIACAO_ANUAL = 0.1;
 const CURRENCY_DECIMALS = 2;
 
 // Estado principal do comparador (seleção, filtros e perfil de uso)
@@ -345,7 +344,7 @@ function renderEquipmentCards() {
             </div>
             <div>
               <label>Valor Residual (R$)</label>
-              <input type="number" data-role="cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(state.usage.taxaReal, 0.01))}" readonly />
+              <input type="number" data-role="cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), getLifeYearsMin(), parseNumber(entry.anosVida, 10), parseNumber(state.usage.taxaReal, 0.01))}" readonly />
             </div>
             <div>
               <label>Descarte (R$)</label>
@@ -376,7 +375,7 @@ function renderEquipmentCards() {
           </div>
           <div>
             <label>Valor Residual (R$)</label>
-            <input type="number" data-role="cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), parseNumber(entry.anosVida, 10), parseNumber(state.usage.taxaReal, 0.01))}" readonly />
+            <input type="number" data-role="cf-vr" data-key="${entry.key}" min="0" step="1" value="${computeResidualValue(parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0), getLifeYearsMin(), parseNumber(entry.anosVida, 10), parseNumber(state.usage.taxaReal, 0.01))}" readonly />
           </div>
           <div>
             <label>Descarte (R$)</label>
@@ -480,10 +479,13 @@ function roundCurrency(value) {
   return Math.round(value * factor) / factor;
 }
 
-function computeResidualValue(capex, years, rate = 0) {
-  const vr = capex * (1 - DEPRECIACAO_ANUAL * years);
+function computeResidualValue(capex, elapsedYears, totalLifeYears = 10, rate = 0) {
+  const vidaBase = Math.max(1, parseNumber(totalLifeYears, 10));
+  const anosDecorridos = Math.max(0, Math.min(parseNumber(elapsedYears, 0), vidaBase));
+  const depAnual = 1 / vidaBase;
+  const vr = capex * (1 - depAnual * anosDecorridos);
   const base = vr > 0 ? vr : 0;
-  const pv = rate ? base / (1 + rate) ** years : base;
+  const pv = rate ? base / (1 + rate) ** anosDecorridos : base;
   return roundCurrency(pv);
 }
 
@@ -491,12 +493,17 @@ function updateResidualInputs(entry) {
   if (!equipmentListEl || !entry) return;
   const capex = parseNumber(entry.custoAq, 0) + parseNumber(entry.custoInst, 0);
   const anosVida = parseNumber(entry.anosVida, 10);
+  const anosAnalise = getLifeYearsMin();
   const taxaReal = parseNumber(state.usage.taxaReal, 0.01);
-  const valorResidual = computeResidualValue(capex, anosVida, taxaReal);
+  const valorResidual = computeResidualValue(capex, anosAnalise, anosVida, taxaReal);
   const inputs = equipmentListEl.querySelectorAll(`input[data-role="cf-vr"][data-key="${entry.key}"]`);
   inputs.forEach((input) => {
     input.value = valorResidual;
   });
+}
+
+function updateAllResidualInputs() {
+  state.equipments.forEach((entry) => updateResidualInputs(entry));
 }
 
 function formatNumberBr(value, decimals = 2) {
@@ -625,15 +632,15 @@ addEquipmentBtn?.addEventListener("click", () => {
 
     if (role === "custo-aq") {
       entry.custoAq = parseNumber(target.value, 0);
-      updateResidualInputs(entry);
+      updateAllResidualInputs();
     }
     if (role === "custo-inst") {
       entry.custoInst = parseNumber(target.value, 0);
-      updateResidualInputs(entry);
+      updateAllResidualInputs();
     }
     if (role === "cf-anos") {
       entry.anosVida = parseNumber(target.value, 10);
-      updateResidualInputs(entry);
+      updateAllResidualInputs();
     }
     if (role === "cf-manut") entry.manut = parseNumber(target.value, 0);
     if (role === "cf-cd") entry.descarte = parseNumber(target.value, 0);
@@ -659,7 +666,7 @@ addEquipmentBtn?.addEventListener("click", () => {
   usageInputs.taxa.addEventListener("input", () => {
     state.usage.taxaReal = parseNumber(usageInputs.taxa.value, 0.01);
     usageInputs.taxaVal.textContent = formatPercentBr(state.usage.taxaReal, 2);
-    state.equipments.forEach((entry) => updateResidualInputs(entry));
+    updateAllResidualInputs();
     updateCharts();
   });
   usageInputs.dias.addEventListener("input", () => {
@@ -826,10 +833,10 @@ function updateCharts() {
           <div class="muted">${item.eq.marca}</div>
           <div style="font-size:1.5rem; font-weight:800; color:${item.color};">${formatNumberBr(item.consumoTotal, 2)} kWh de Consumo Elétrico</div>
           <div class="muted">Classe ${item.eq.classe} | IDRS ${formatNumberBr(item.eq.idrs, 2)}</div>
-          <div><strong>COA-Energia Anual (VP):</strong> ${formatCurrencyBr(item.custoEnergiaPV / lifeYears)}</div>
-          <div><strong>COA-Energia em ${lifeYears} Anos (VP):</strong> ${formatCurrencyBr(item.custoEnergiaPV)}</div>
-          <div><strong>COA Anual (VP):</strong> ${formatCurrencyBr(item.coaPV / lifeYears)}</div>
-          <div><strong>COA em ${lifeYears} Anos (VP):</strong> ${formatCurrencyBr(item.coaPV)}</div>
+          <div><strong>Custo com Energia Anual:</strong> ${formatCurrencyBr(item.custoEnergiaPV / lifeYears)}</div>
+          <div><strong>Custo com Energia em ${lifeYears} Anos:</strong> ${formatCurrencyBr(item.custoEnergiaPV)}</div>
+          <div><strong>Custo de Operação e Apoio Anual:</strong> ${formatCurrencyBr(item.coaPV / lifeYears)}</div>
+          <div><strong>Custo de Operação e Apoio em ${lifeYears} Anos:</strong> ${formatCurrencyBr(item.coaPV)}</div>
         </div>
       `
       )
@@ -883,7 +890,8 @@ function buildCashflowRows(item, params) {
     const capexAno = 0;
     const energiaAno = energiaAnual;
     const manutAno = manut;
-    const valorResidualAno = ano === years ? computeResidualValue(capex, ano, taxa) : 0;
+    const vidaEquip = Math.max(1, parseNumber(item.anosVida, years));
+    const valorResidualAno = ano === years ? computeResidualValue(capex, ano, vidaEquip, taxa) : 0;
     const descarteVp = ano === years ? descarte / (1 + taxa) ** ano : 0;
     // Convencao de sinais (custo): CD positivo aumenta custo; VR reduz custo (terminal).
     const descarteAno = descarteVp - valorResidualAno;

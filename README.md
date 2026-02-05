@@ -10,7 +10,7 @@ Este projeto é de caráter estritamente acadêmico e pessoal. Como o repositór
 - É terminantemente **proibida** a cópia, clonagem, redistribuição ou uso (parcial ou total) deste código para fins comerciais ou privados sem autorização prévia.
 - O código está disponível publicamente apenas para fins de **portfólio e visualização**, conforme os [Termos de Serviço do GitHub](https://docs.github.com/pt/site-policy/github-terms/github-terms-of-service).
 
-© 2024 [DouglasNOliveira]
+© 2026 [DouglasNOliveira]
 
 ---
 # Visão geral do projeto
@@ -19,8 +19,8 @@ O produto é um front-end estático (HTML/CSS/JS). Ele carrega uma base INMETRO 
 ---
 # Arquivos e funções essenciais
 - index.html: estrutura da página, seções/abas, placeholders e inclusão dos assets e libs via CDN (Charts.js, xlsx, jsPDF);
-- styles.css: define o visual completo (layout, cores, grids, cards, formulários, tabelas, gráficos e responsividade);
-- mais.js: ponto de entrada; inicializa as abas, cards de módulos e toda a lógica do comparador/ciclo de vida;
+- assets/style.css: define o visual completo (layout, cores, grids, cards, formulários, tabelas, gráficos e responsividade);
+- assets/main.js: ponto de entrada; inicializa as abas, cards de módulos e toda a lógica do comparador/ciclo de vida;
 - tabs.js: controla navegação entre abas e dropdows (ativa/desativa seções);
 - modules-cards.js: lista de módulos (ativos e "em breve") e renderiza os cards da home, com links para as abas corretas.
 - comparador.js: coração do sistema; carrega o JSON de equipamentos, aplica filtros, renderiza UI de seleção, calcula consumo/custos, atualiza gráficos, monta fluxo de caixa e payback, e dispara exportações;
