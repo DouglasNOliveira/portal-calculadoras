@@ -1,6 +1,7 @@
 // ARQUIVO RESPONSÁVEL POR GERENCIAR O COMPARADOR MÚLTIPLO DE EQUIPAMENTOS
 import { computeEnergyTotals } from "./energy.js";
 import { createComparadorChartsLite, destroyChartGroup, BLUE_PALETTE } from "./charts.js";
+import { downloadSingleEquipmentExcel } from "./export-excel.js";
 
 const DEPRECIACAO_ANUAL = 0.1;
 const CURRENCY_DECIMALS = 2;
@@ -226,8 +227,9 @@ function buildSimOptionList(filtered) {
         (eq) => {
           const potencia = eq.potencia_btu ? `${eq.potencia_btu} BTU/h` : "";
           const tecnologia = eq.tecnologia ? `(${eq.tecnologia})` : "";
+          const idrs = Number.isFinite(eq.idrs) ? `IDRS ${Number(eq.idrs).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "";
           const modelo = eq.modelo_concat ? `- ${eq.modelo_concat}` : "";
-          const label = [eq.marca, potencia, tecnologia].filter(Boolean).join(" ") + ` ${modelo}`.trimEnd();
+          const label = [eq.marca, potencia, tecnologia, idrs].filter(Boolean).join(" ") + ` ${modelo}`.trimEnd();
           const fullLabel = `${eq.marca} - ${eq.funcao} - ${eq.potencia_btu} BTU/h (${eq.tecnologia}) - ${eq.tipo} - ${eq.tensao} V - IDRS: ${eq.idrs} - Classe: ${eq.classe} - Modelo: ${eq.modelo_concat}`;
           return `<option value="${eq.id}" data-full="${fullLabel}">${label}</option>`;
         }
@@ -407,6 +409,13 @@ function getSimLifeYearsMin(entries) {
     })
   );
   return Number.isFinite(years) && years > 0 ? years : 1;
+}
+
+function buildSimComputed(entries, lifeYears) {
+  return computeEnergyTotals(entries, simState.usage, lifeYears).map((entry, idx) => ({
+    ...entry,
+    color: BLUE_PALETTE[idx % BLUE_PALETTE.length],
+  }));
 }
 
 function getSimEntryUid(entry) {
@@ -840,10 +849,7 @@ function simUpdateCharts(filtered) {
   }));
 
   const lifeYears = getSimLifeYearsMin(entries);
-  const computed = computeEnergyTotals(entries, simState.usage, lifeYears).map((entry, idx) => ({
-    ...entry,
-    color: BLUE_PALETTE[idx % BLUE_PALETTE.length],
-  }));
+  const computed = buildSimComputed(entries, lifeYears);
 
   const sortedByConsumo = [...computed].sort((a, b) => a.consumoTotal - b.consumoTotal);
   const sortedByCusto = [...computed].sort((a, b) => a.custoEnergiaPV - b.custoEnergiaPV);
@@ -897,6 +903,30 @@ function simUpdateCharts(filtered) {
 
   simChartsCard.classList.remove("hidden");
   updateSimCashflowComparison(computed);
+}
+
+function handleSimEquipmentExport(key) {
+  const selected = getSimSelectedEntries(lastFiltered);
+  if (!selected.length) return;
+  const entries = selected.map((entry) => ({
+    ...entry,
+    custoAq: parseNumber(entry.custoAq, 0),
+    custoInst: parseNumber(entry.custoInst, 0),
+    manut: parseNumber(entry.manut, 0),
+    descarte: parseNumber(entry.descarte, 0),
+    anosVida: parseNumber(entry.anosVida, 10),
+  }));
+  const lifeYears = getSimLifeYearsMin(entries);
+  const computed = buildSimComputed(entries, lifeYears);
+  const target = computed.find((item) => item.key?.toString() === key.toString());
+  if (!target) return;
+  const years = Math.max(1, parseNumber(target.anosVida, lifeYears));
+  const cashflowRows = buildSimCashflowRows(target, years, parseNumber(simState.usage.taxaReal, 0.01));
+  downloadSingleEquipmentExcel({
+    equipment: target,
+    usage: simState.usage,
+    cashflowRows,
+  });
 }
 
 // Aplica os filtros selecionados no comparador
@@ -1007,12 +1037,18 @@ function attachSimEvents() {
       const target = event.target;
       const role = target?.dataset?.role;
       const key = target?.dataset?.key;
-      if (role !== "sim-remove-equipment" || !key) return;
-      if (simState.equipments.length <= 1) return;
-      simState.equipments = simState.equipments.filter((e) => e.key.toString() !== key.toString());
-      renderSimEquipmentCards(lastFiltered);
-      simUpdateCharts(lastFiltered);
-      simUpdateVisibility(lastFiltered);
+      if (!role || !key) return;
+      if (role === "sim-remove-equipment") {
+        if (simState.equipments.length <= 1) return;
+        simState.equipments = simState.equipments.filter((e) => e.key.toString() !== key.toString());
+        renderSimEquipmentCards(lastFiltered);
+        simUpdateCharts(lastFiltered);
+        simUpdateVisibility(lastFiltered);
+        return;
+      }
+      if (role === "sim-export-equipment") {
+        handleSimEquipmentExport(key);
+      }
     });
 
     simEquipmentListEl.addEventListener("change", (event) => {
